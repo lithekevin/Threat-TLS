@@ -8,17 +8,19 @@ import watchdog.events
 import watchdog.observers
 import subprocess
 import os.path
-from ciphers import cbc_ciphers,rsa_ciphers
+from ciphers import cbc_ciphers, rsa_ciphers
+from certificate import get_cert_for_hostname, get_ocsp_cert_status
 
 connessioni_attive = dict()
 server_tested = []
 vuln_conn = dict()
 tls_version_conn = dict()
 cv = threading.Condition()
-MAX_NUM = 2
+MAX_NUM = 20
 full_version = 0
 IDS = 'Suricata'
-nmap=False
+nmap = False
+
 
 # ----------SCRIPT ATTACCHI---------
 def metasploit_prosess(ip, port, tls_version):
@@ -179,6 +181,7 @@ def verifica_vulnerabilità():
             while len(vuln_conn.keys()) < 1:
                 print(f'PRIMA WAIT ---> {len(vuln_conn)}')
                 cv.wait()
+                print(f'DOPO WAIT NEL WHILE---> {len(vuln_conn)}')
 
             print("Consumer Thread")
             print(f'DOPO WAIT ---> {len(vuln_conn)}')
@@ -187,81 +190,86 @@ def verifica_vulnerabilità():
             print('-----')
             print(vuln_conn)
             job = []
+            [connessioni, all_vuln_for_conn] = vuln_conn.popitem()
+            print(connessioni)
+            print(all_vuln_for_conn)
 
-            for connessioni in keys:
-                # In caso si voglia distinguere sorgente e destinazione
-                source = connessioni.split("->")[0]
-                dest = connessioni.split("->")[1]
-                print(f"SRC: {source}")
-                print(f"DEST: {dest}")
-                if (IDS == 'Suricata'):
-                    ip_source = source.split(":")[0].split(" ")[1]
+            # for connessioni in keys:
+            # In caso si voglia distinguere sorgente e destinazione
+            source = connessioni.split("->")[0]
+            dest = connessioni.split("->")[1]
+            print(f"SRC: {source}")
+            print(f"DEST: {dest}")
+            if (IDS == 'Suricata'):
+                ip_source = source.split(":")[0].split(" ")[1]
 
-                else:
-                    ip_source = source.split(":")[0]
+            else:
+                ip_source = source.split(":")[0]
 
-                ip_dest = dest.split(":")[0]
+            ip_dest = dest.split(":")[0]
 
-                print(f"IP SRC: -{ip_source}-")
-                print(f"IP DEST: -{ip_dest}-")
-                port_source = source.split(":")[1].split(" ")[0]
-                port_dest = dest.split(":")[1]
-                print(f"PORT SRC: {port_source}")
-                print(f"PORT DEST: {port_dest}")
-
-                for test_vuln in vuln_conn[connessioni]:
-                    print("Vulnerabilita TEST")
-                    print(test_vuln)
-                    if test_vuln == "HEARTBEAT EXTENSION":
-                        # print(connessioni_attive)
-                        # connessioni_attive[connessioni].append(test_vuln)
-                        print("HEARTBLEED METASPLOIT")
-                        print(f"TLS_VERSION_CONN: {tls_version_conn}")
-                        tls_version = tls_version_conn[connessioni]
-                        print(f"TLS_VERSION: {tls_version} ")
-                        heartbleed_metasploit = threading.Thread(target=metasploit_prosess,
-                                                                 args=(ip_source, port_source, tls_version))
-                        heartbleed_metasploit.start()
-                        job.append(heartbleed_metasploit)
-
-                        if nmap:
-                            print("HEARTBLEED NMAP")
-                            heartbleed_nmap = threading.Thread(target=nmap_process, args=(ip_source, port_source,))
-                            heartbleed_nmap.start()
-                            job.append(heartbleed_nmap)
-
-                    if test_vuln == "CRIME":
-                        print("CRIME DOPO IF")
-
-                    if test_vuln == "PADDING ORACLE ATTACK":
-                        print("PADDING ORACLE ATTACK ---> DOPO IF")
-                        padding_oracle = threading.Thread(target=padding_attack_process, args=(ip_source, port_source))
-                        padding_oracle.start()
-                        job.append(padding_oracle)
-
-                    if test_vuln == "POODLE":
-                        print("POODLE ATTACK IF")
-                        poodle = threading.Thread(target=poodle_nmap_process, args=(ip_source, port_source,))
-                        poodle.start()
-                        job.append(poodle)
-
-                    if test_vuln == "BLEICHENBACHER":
-                        print("BLEICHENBACHER")
-                        bleichenbachers = threading.Thread(target=bleichenbachers_process,
-                                                           args=(ip_source, port_source,))
-                        bleichenbachers.start()
-                        job.append(bleichenbachers)
-
+            print(f"IP SRC: -{ip_source}-")
+            print(f"IP DEST: -{ip_dest}-")
+            port_source = source.split(":")[1].split(" ")[0]
+            port_dest = dest.split(":")[1]
+            print(f"PORT SRC: {port_source}")
+            print(f"PORT DEST: {port_dest}")
             print(f"NUMERO VULN CONN: {vuln_conn}")
-            vuln_conn.clear()
-            print(f"NUMERO VULN CONN DOPO CLEAR: {vuln_conn}")
-            cv.notify()
-            cv.release()
+            # all_vuln_for_conn=vuln_conn.pop(connessioni)
+            print(f"NUMERO VULN CONN DOPO POP: {vuln_conn}")
+            for test_vuln in all_vuln_for_conn:
+                print("Vulnerabilita TEST")
+                print(test_vuln)
+                if test_vuln == "HEARTBEAT EXTENSION":
+                    # print(connessioni_attive)
+                    # connessioni_attive[connessioni].append(test_vuln)
+                    print("HEARTBLEED METASPLOIT")
+                    print(f"TLS_VERSION_CONN: {tls_version_conn}")
+                    tls_version = tls_version_conn.pop(connessioni)
+                    print(f"TLS_VERSION: {tls_version} ")
+                    heartbleed_metasploit = threading.Thread(target=metasploit_prosess,
+                                                             args=(ip_source, port_source, tls_version))
+                    heartbleed_metasploit.start()
+                    job.append(heartbleed_metasploit)
 
+                    if nmap:
+                        print("HEARTBLEED NMAP")
+                        heartbleed_nmap = threading.Thread(target=nmap_process, args=(ip_source, port_source,))
+                        heartbleed_nmap.start()
+                        job.append(heartbleed_nmap)
+
+                if test_vuln == "CRIME":
+                    print("CRIME DOPO IF")
+
+                if test_vuln == "PADDING ORACLE ATTACK":
+                    print("PADDING ORACLE ATTACK ---> DOPO IF")
+                    padding_oracle = threading.Thread(target=padding_attack_process, args=(ip_source, port_source))
+                    padding_oracle.start()
+                    job.append(padding_oracle)
+
+                if test_vuln == "POODLE":
+                    print("POODLE ATTACK IF")
+                    poodle = threading.Thread(target=poodle_nmap_process, args=(ip_source, port_source,))
+                    poodle.start()
+                    job.append(poodle)
+
+                if test_vuln == "BLEICHENBACHER":
+                    print("BLEICHENBACHER")
+                    bleichenbachers = threading.Thread(target=bleichenbachers_process,
+                                                       args=(ip_source, port_source,))
+                    bleichenbachers.start()
+                    job.append(bleichenbachers)
+
+            # vuln_conn.clear()
+            # tls_version_conn.clear()
+            print(f"NUMERO VULN CONN DOPO CLEAR: {vuln_conn}")
             for test in job:
                 print("----TORNO A CASA-----")
                 test.join()
             print("---------FINE VERIFICA----------")
+
+            cv.notify()
+            cv.release()
 
     except (KeyboardInterrupt, SystemExit):
         cv.notify()
@@ -334,12 +342,15 @@ def file_reader_suricata(fp):
 def file_reader_zeek(fp):
     global vuln_conn
     for line in fp:
-        print("------LINE------")
-        print(line)
+
         lineArray = line.split('\x09')
-        j = 0
         if lineArray.__len__() > 3 and lineArray[2] != 'uid' and lineArray[2] != 'string':
+
             cv.acquire()
+
+            if len(vuln_conn) == MAX_NUM:
+                print("PIENO QUINDI MI FERMO")
+                cv.wait()
 
             ip_src = lineArray[2]
             port_src = lineArray[3]
@@ -348,19 +359,22 @@ def file_reader_zeek(fp):
             tls_version = lineArray[6]
             cipher_suite = lineArray[7]
             msg = lineArray[15]
-            validation_status = lineArray[19]  # 'self signed certificate\n'
-            print(f'VALIDATION: {validation_status}')
-            print(f'CAMPI SALVATI:')
-            print(f'IP_SRC: {ip_src}')
-            print(f'IP_DEST: {ip_dest}')
-            print(f'PORT_SRC: {port_src}')
-            print(f'PORT_DEST: {port_dest}')
-            print(f'TLS_VERSION: {tls_version}')
-            print(f'CIPHER: {cipher_suite}')
-            print(f'MSG: {msg}')
+            compression = lineArray[16]
+            validation_status = lineArray[20]  # 'self signed certificate\n'
+            # print(f'VALIDATION: {validation_status}')
+            # print(f'CAMPI SALVATI:')
+            # print(f'IP_SRC: {ip_src}')
+            # print(f'IP_DEST: {ip_dest}')
+            # print(f'PORT_SRC: {port_src}')
+            # print(f'PORT_DEST: {port_dest}')
+            # print(f'TLS_VERSION: {tls_version}')
+            # print(f'CIPHER: {cipher_suite}')
+            # print(f'MSG: {msg}')
 
             exception_ip = '10.0.2.15'
-            if ip_dest != exception_ip:
+            if ip_dest != exception_ip and ip_src != exception_ip:
+                print("------LINE------")
+                print(line)
                 src_dest = f"{ip_dest}:{port_dest} -> {ip_src}:{port_src}"
                 vuln_conn[src_dest] = []
 
@@ -387,12 +401,6 @@ def file_reader_zeek(fp):
                     if tls_version == 'TLSv12':
                         tls_version_conn[src_dest] = 1.2
 
-                if len(vuln_conn) == MAX_NUM:
-                    cv.wait()
-                print('NOTIFYYYYY')
-                cv.notify()
-                cv.release()
-
                 if full_version == 1:
                     print("FULL MODE ZEEK")
                     if ip_src not in server_tested:
@@ -400,6 +408,13 @@ def file_reader_zeek(fp):
                         server_tested.append(ip_src)
                         test = threading.Thread(target=testssl_lab, args=(ip_src, port_src,))
                         test.start()
+
+                print('NOTIFYYYYY')
+                print(vuln_conn)
+                cv.notify()
+                print('DOPO NOTIFYYYYY')
+            cv.release()
+            print('DOPO RELEASE')
 
 
 def process_handler():
