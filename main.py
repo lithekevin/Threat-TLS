@@ -9,7 +9,7 @@ import watchdog.observers
 import subprocess
 import os.path
 from ciphers import cbc_ciphers, rsa_ciphers
-from certificate import get_cert_for_hostname, get_ocsp_cert_status
+from certificate import get_cert_for_hostname, get_ocsp_cert_status,get_cert_status_for_host
 
 connessioni_attive = dict()
 server_tested = []
@@ -260,6 +260,17 @@ def verifica_vulnerabilità():
                     bleichenbachers.start()
                     job.append(bleichenbachers)
 
+                if test_vuln == 'SELF SIGNED':
+                    print(f"THE CERTIFICATE FOR CONNECTION: {connessioni} IS SELF SIGNED")
+
+                if test_vuln == 'EXPIRED':
+                    print(f"THE CERTIFICATE FOR CONNECTION: {connessioni} IS EXPIRED")
+
+                if test_vuln == 'CERTIFICATE':
+                    test_certificate = threading.Thread(target=get_cert_status_for_host,args=(ip_source,port_source,))
+                    test_certificate.start()
+                    job.append(test_certificate)
+
             # vuln_conn.clear()
             # tls_version_conn.clear()
             print(f"NUMERO VULN CONN DOPO CLEAR: {vuln_conn}")
@@ -367,7 +378,7 @@ def file_reader_zeek(fp):
             # print(f'IP_DEST: {ip_dest}')
             # print(f'PORT_SRC: {port_src}')
             # print(f'PORT_DEST: {port_dest}')
-            # print(f'TLS_VERSION: {tls_version}')
+            print(f'-------> TLS_VERSION: {tls_version}')
             # print(f'CIPHER: {cipher_suite}')
             # print(f'MSG: {msg}')
 
@@ -387,6 +398,9 @@ def file_reader_zeek(fp):
                 if cipher_suite in rsa_ciphers:
                     vuln_conn[src_dest].append('BLEICHENBACHER')
 
+                if compression == 'COMPRESSION':
+                    vuln_conn[src_dest].append('CRIME')
+
                 if msg == 'HEARTBEAT':
                     vuln_conn[src_dest].append('HEARTBEAT EXTENSION')
                     if tls_version == 'SSLv3':
@@ -400,6 +414,14 @@ def file_reader_zeek(fp):
 
                     if tls_version == 'TLSv12':
                         tls_version_conn[src_dest] = 1.2
+
+                    if tls_version == '-':
+                        tls_version_conn[src_dest] = 1.0
+
+                if validation_status == 'self signed certificate\n':
+                    vuln_conn[src_dest].append('SELF SIGNED')
+                else:
+                    vuln_conn[src_dest].append('CERTIFICATE')
 
                 if full_version == 1:
                     print("FULL MODE ZEEK")
