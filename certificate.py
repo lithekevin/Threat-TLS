@@ -10,6 +10,8 @@ from cryptography.hazmat.primitives.hashes import SHA256
 from cryptography.x509 import ocsp
 from cryptography.x509.ocsp import OCSPResponseStatus
 from cryptography.x509.oid import ExtensionOID, AuthorityInformationAccessOID
+from crl_checker import check_revoked, Revoked, Error, check_revoked_crypto_cert
+from ocspchecker import ocspchecker
 
 
 def get_cert_for_hostname(hostname, port):
@@ -18,7 +20,8 @@ def get_cert_for_hostname(hostname, port):
     sock = context.wrap_socket(conn, server_hostname=hostname)
     certDER = sock.getpeercert(True)
     certPEM = ssl.DER_cert_to_PEM_cert(certDER)
-    return x509.load_pem_x509_certificate(certPEM.encode('ascii'), default_backend())
+    certificate=ssl.DER_cert_to_PEM_cert(sock.getpeercert(True))
+    return x509.load_pem_x509_certificate(certPEM.encode('ascii'), default_backend()), certificate
 
 
 def get_issuer(cert):
@@ -56,21 +59,26 @@ def get_oscp_request(ocsp_server, cert, issuer_cert):
 
 
 def get_ocsp_cert_status(ocsp_server, cert, issuer_cert):
+    print("-----STATUS------")
     ocsp_resp = requests.get(get_oscp_request(ocsp_server, cert, issuer_cert))
+    print(ocsp_resp)
     if ocsp_resp.ok:
         ocsp_decoded = ocsp.load_der_ocsp_response(ocsp_resp.content)
+
         if ocsp_decoded.response_status == OCSPResponseStatus.SUCCESSFUL:
+            print(f"OCSP DECODED STATUS: {ocsp_decoded.certificate_status} - OCSP RESPONSE: {ocsp_decoded.response_status}")
+            print(f"---RESPONSES: {ocsp_decoded.responses}")
             return ocsp_decoded.certificate_status
         else:
             # raise Exception(f'decoding ocsp response failed: {ocsp_decoded.response_status}')
             return ocsp_decoded.response_status
-    raise Exception(f'fetching ocsp cert status failed with response status: {ocsp_resp.status_code}')
+    print(f'fetching ocsp cert status failed with response status: {ocsp_resp.status_code}')
 
 
 def get_cert_status_for_host(hostname, port):
     print('   hostname:', hostname, "port:", port)
-    cert = get_cert_for_hostname(hostname, port)
-    # print("CERTIFICATE:")
+    [cert, cert_string] = get_cert_for_hostname(hostname, port)
+    # print(f"CERTIFICATE: {cert_string}")
     # print(f"ISSUER: {cert.issuer} - SUBJECT: {cert.subject} - VERSION: {cert.version} - PK: {cert.public_key()}")
     array = []
     crl = ''
@@ -80,6 +88,7 @@ def get_cert_status_for_host(hostname, port):
         crl = cert.extensions.get_extension_for_oid(ExtensionOID.CRL_DISTRIBUTION_POINTS)
         # print("-----------CRLDISTRIBUTIONPOINTS-------------")
         # print(cert.extensions.get_extension_for_oid(ExtensionOID.CRL_DISTRIBUTION_POINTS))
+        print(f"CRL VALUE: {crl.value}")
         array.append('CRL')
     except:
         print("CRLDISTRIBUTIONPOINTS NOT FOUND")
@@ -94,7 +103,7 @@ def get_cert_status_for_host(hostname, port):
         print(ocsp)
         array.append('OCSP')
     except:
-        print("CRL EXTENSION NOT FOUND")
+        print("OCSP EXTENSION NOT FOUND")
 
     try:
         ca_issuer = get_issuer(cert)
@@ -122,6 +131,18 @@ def get_cert_status_for_host(hostname, port):
         if array.__contains__('CRL'):
             print('CRL EXTENSION FOUND')
             print(crl)
+            try:
+                print("PROVO CRL")
+                status_crl=check_revoked(cert_string)
+                print(status_crl)
+                if status_crl is None:
+                    print("THE CERTIFICATE IS NOT FOUND IN THE CRL LIST.")
+            except Revoked as e:
+                print(f"Certificate revoked: {e}")
+            except Error as e:
+                print(f"Revocation check failed. Error: {e}")
+            except:
+                print("CAN'T CHECK THE STATUS OF THE CERTIFICATE ON THE CRL SERVER")
         if array.__contains__('OCSP'):
             print('OCSP EXTENSION FOUND')
             print(ocsp)
@@ -129,4 +150,6 @@ def get_cert_status_for_host(hostname, port):
     if issuer_cert == "" or cert == "" or ocsp_server == "":
         print("ISSUER, CERT AND OCSP NOT FOUND")
     else:
-        get_ocsp_cert_status(ocsp_server, cert, issuer_cert)
+        print("----CERCO LO STATUS DEL CERTIFICATO------")
+        status=get_ocsp_cert_status(ocsp_server, cert, issuer_cert)
+        print(status)
