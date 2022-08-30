@@ -267,9 +267,10 @@ def verifica_vulnerabilità():
                     print(f"THE CERTIFICATE FOR CONNECTION: {connessioni} IS EXPIRED")
 
                 if test_vuln == 'CERTIFICATE':
-                    test_certificate = threading.Thread(target=get_cert_status_for_host,args=(ip_source,port_source,))
+                    test_certificate = threading.Thread(target=get_cert_status_for_host,args=(ip_source,port_source,),daemon=True)
                     test_certificate.start()
                     job.append(test_certificate)
+                    # get_cert_status_for_host(ip_source,port_source)
 
             # vuln_conn.clear()
             # tls_version_conn.clear()
@@ -464,7 +465,6 @@ def process_handler():
 
 
 if __name__ == "__main__":
-
     producer = threading.Thread(target=process_handler, daemon=True)
     print("---------->>>>SECONDO")
     verify = threading.Thread(target=verifica_vulnerabilità, daemon=True)

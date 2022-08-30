@@ -1,5 +1,8 @@
 import base64
 import ssl
+import subprocess
+
+import cryptography
 import requests
 from urllib.parse import urljoin
 
@@ -11,16 +14,94 @@ from cryptography.x509 import ocsp
 from cryptography.x509.ocsp import OCSPResponseStatus
 from cryptography.x509.oid import ExtensionOID, AuthorityInformationAccessOID
 from crl_checker import check_revoked, Revoked, Error, check_revoked_crypto_cert
+from utlz import flo
+from ctutlz.ctlog import download_log_list
+from ctutlz.scripts.verify_scts import verify_scts_by_cert, verify_scts_by_ocsp, verify_scts_by_tls
+from ctutlz.tls.handshake import do_handshake
 from ocspchecker import ocspchecker
+
+
+def sct_web(hostname, port, sct_cert):
+    try:
+        ctlogs = download_log_list()
+        handshake = do_handshake(hostname, port)
+        print(f"HOST: {hostname} - PORT: {port}")
+        if sct_cert.__len__() > 0:
+            verification_cert = verify_scts_by_cert(handshake, ctlogs)
+            for ver in verification_cert:
+                if ver.verified:
+                    description = ver.log["description"]
+                    print(f"{ver.verified}: {description} - {ver}")
+                else:
+                    print("SCT NOT VERIFIED")
+        else:
+            verification_ocsp = verify_scts_by_ocsp(handshake, ctlogs)
+            if verification_ocsp.__len__() == 0:
+                print("NO SCT FOUND BY OCSP")
+            else:
+                for ver in verification_ocsp:
+                    if ver.verified:
+                        description = ver.log["description"]
+                        print(f"{ver.verified}: {description} - {ver}")
+                    else:
+                        print("SCT NOT VERIFIED")
+
+            verification_tls = verify_scts_by_tls(handshake, ctlogs)
+            if verification_tls.__len__() == 0:
+                print("NO SCT FOUND IN TLS EXTENSION")
+            else:
+                for ver in verification_tls:
+                    if ver.verified:
+                        description = ver.log["description"]
+                        print(f"{ver.verified}: {description} - {ver}")
+                    else:
+                        print("SCT NOT VERIFIED")
+
+    except (SystemExit, KeyboardInterrupt):
+        print("END Metasploit Process for KeyInterrupt")
+
+
+def sct_cmd(hostname):
+    try:
+        sct = subprocess.Popen(['verify-scts', hostname, '--cert-only'], stdout=subprocess.PIPE)
+
+        stout = sct.communicate()[0].decode()
+        print("----SCT Process:")
+        print(stout)
+    except (SystemExit, KeyboardInterrupt):
+        print("END Metasploit Process for KeyInterrupt")
+
+
+def sct_extension(cert):
+    try:
+        ct = cert.extensions.get_extension_for_oid(ExtensionOID.PRECERT_SIGNED_CERTIFICATE_TIMESTAMPS)
+        # print(f"CT EXTENSION: {ct}")
+        ct_value = ct.value
+
+        # print(ct_value[0])
+
+        print("SCT SOTTO")
+        sct = [ia for ia in ct_value]
+        logs_id = []
+        # print(Logs.logs)
+        for s in sct:
+            print(
+                f"VERSION: {s.version} - LOGID: {s.log_id.hex()} - TIMESTAMP: {s.timestamp} - ENTRYTIPE: {s.entry_type}")
+
+        return sct
+    except cryptography.x509.extensions.ExtensionNotFound:
+        print("NO PRECERT_SIGNED_CERTIFICATE_TIMESTAMPS FOUND INTO CERTIFICATE")
+        return []
 
 
 def get_cert_for_hostname(hostname, port):
     conn = ssl.create_connection((hostname, port))
+    # mettere TLSv1.3
     context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
     sock = context.wrap_socket(conn, server_hostname=hostname)
     certDER = sock.getpeercert(True)
     certPEM = ssl.DER_cert_to_PEM_cert(certDER)
-    certificate=ssl.DER_cert_to_PEM_cert(sock.getpeercert(True))
+    certificate = ssl.DER_cert_to_PEM_cert(sock.getpeercert(True))
     return x509.load_pem_x509_certificate(certPEM.encode('ascii'), default_backend()), certificate
 
 
@@ -66,7 +147,8 @@ def get_ocsp_cert_status(ocsp_server, cert, issuer_cert):
         ocsp_decoded = ocsp.load_der_ocsp_response(ocsp_resp.content)
 
         if ocsp_decoded.response_status == OCSPResponseStatus.SUCCESSFUL:
-            print(f"OCSP DECODED STATUS: {ocsp_decoded.certificate_status} - OCSP RESPONSE: {ocsp_decoded.response_status}")
+            print(
+                f"OCSP DECODED STATUS: {ocsp_decoded.certificate_status} - OCSP RESPONSE: {ocsp_decoded.response_status}")
             print(f"---RESPONSES: {ocsp_decoded.responses}")
             return ocsp_decoded.certificate_status
         else:
@@ -94,7 +176,6 @@ def get_cert_status_for_host(hostname, port):
         print("CRLDISTRIBUTIONPOINTS NOT FOUND")
 
     try:
-        cert.extensions.get_extension_for_oid(ExtensionOID.AUTHORITY_INFORMATION_ACCESS)
         print('---------------OCSP---------------')
         e = cert.extensions.get_extension_for_oid(ExtensionOID.AUTHORITY_INFORMATION_ACCESS)
         print(e.value)
@@ -104,6 +185,16 @@ def get_cert_status_for_host(hostname, port):
         array.append('OCSP')
     except:
         print("OCSP EXTENSION NOT FOUND")
+
+    # try:
+    print("---------CERTIFICATE TRANSPARENCY-----------")
+    sct_cert = sct_extension(cert)
+
+    sct_web(hostname, port, sct_cert)
+    # sct_cmd(hostname)
+
+    # except:
+    #     print("PRE-CERTIFICATE FOR CERTIFICATE TRANSPARENCY NOT FOUND")
 
     try:
         ca_issuer = get_issuer(cert)
@@ -133,7 +224,7 @@ def get_cert_status_for_host(hostname, port):
             print(crl)
             try:
                 print("PROVO CRL")
-                status_crl=check_revoked(cert_string)
+                status_crl = check_revoked(cert_string)
                 print(status_crl)
                 if status_crl is None:
                     print("THE CERTIFICATE IS NOT FOUND IN THE CRL LIST.")
@@ -151,5 +242,5 @@ def get_cert_status_for_host(hostname, port):
         print("ISSUER, CERT AND OCSP NOT FOUND")
     else:
         print("----CERCO LO STATUS DEL CERTIFICATO------")
-        status=get_ocsp_cert_status(ocsp_server, cert, issuer_cert)
+        status = get_ocsp_cert_status(ocsp_server, cert, issuer_cert)
         print(status)
