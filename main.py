@@ -387,7 +387,7 @@ def verifica_vulnerabilita():
                                                              args=(ip_source, port_source, tls_version))
                     heartbleed_metasploit.start()
                     # log_print(f'Start test for {ip_source}:{port_source} for HEARTBLEED vulnerability with Metasploit')
-                    log_print_attack(ip_source,ip_dest,'HEARTBEED WITH METASPLOIT')
+                    log_print_attack(ip_source,port_source,'HEARTBEED WITH METASPLOIT')
                     job.append(heartbleed_metasploit)
 
                     if nmap:
@@ -404,7 +404,7 @@ def verifica_vulnerabilita():
                     # log_print(f'Start test for {ip_source}:{port_source} for CRIME vulnerability')
                     job.append(crime)
                     # log_print(f'Server {ip_source}:{port_source} is vunerable to CRIME')
-                    log_print_attack(ip_source,ip_dest,'CRIME')
+                    log_print_attack(ip_source,port_source,'CRIME')
 
                 if test_vuln == "PADDING ORACLE ATTACK":
                     # print("PADDING ORACLE ATTACK ---> DOPO IF")
@@ -413,6 +413,30 @@ def verifica_vulnerabilita():
                     # log_print(f'Start test for {ip_source}:{port_source} for Padding Oracle Attack vulnerability')
                     log_print_attack(ip_source,ip_dest,'PADDING ORACLE ATTACK')
                     job.append(padding_oracle)
+
+                if test_vuln == 'DROWN':
+                    drown=threading.Thread(target=drownAttack,args=(ip_source,port_source))
+                    drown.start()
+                    log_print_attack(ip_source,port_source,'DROWN ATTACK')
+                    job.append(drown)
+
+                if test_vuln=='SWEET32':
+                    sweet32=threading.Thread(target=sweet32Process,args=(ip_source,port_source))
+                    sweet32.start()
+                    log_print_attack(ip_source,port_source,'SWEET32 ATTACK')
+                    job.append(sweet32)
+
+                if test_vuln == 'LUCKY13':
+                    lucky13=threading.Thread(target=lucky13Process,args=(ip_source,port_source))
+                    lucky13.start()
+                    log_print_attack(ip_source,port_source,'LUCKY13 ATTACK')
+                    job.append(lucky13)
+
+                if test_vuln == 'LOGJAM':
+                    logjam=threading.Thread(target=logJamProcess,args=(ip_source,port_source))
+                    logjam.start()
+                    log_print_attack(ip_source,port_source,'LOGJAM ATTACK')
+                    job.append(logjam)
 
                 if test_vuln == "POODLE":
                     # print("POODLE ATTACK IF")
@@ -517,8 +541,9 @@ def file_reader_suricata(fp):
 
             # Controllo che la lista
 
-            if vuln[2] not in vuln_conn[source_dest]:
-                new_vulnerability = vuln[2].split("#")[1]
+            vulnerabilities = vuln[2].split("#")
+            new_vulnerability = vulnerabilities[1]
+            if new_vulnerability not in vuln_conn[source_dest]:
                 version = ""
                 if new_vulnerability == 'HEARTBEAT EXTENSION':
                     version = vuln[2].split("$")[1]

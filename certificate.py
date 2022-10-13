@@ -21,6 +21,15 @@ from ctutlz.scripts.verify_scts import verify_scts_by_cert, verify_scts_by_ocsp,
 from ctutlz.tls.handshake import do_handshake, create_context
 from datetime import datetime
 
+COLOR = {
+    "HEADER": "\033[95m",
+    "BLUE": "\033[94m",
+    "GREEN": "\033[92m",
+    "RED": "\033[91m",
+    "YELLOW": "\033[93m",
+    "CIANO":"\033[36m",
+    "ENDC": "\033[0m",
+}
 
 def log_print(action):
     now = datetime.now()
@@ -43,7 +52,7 @@ def write_file(ip, port, stdout, attacco):
         fp.write(stdout)
         fp.write(stringa_fine)
         fp.close()
-        print(f'{current_time} --- Esito {attacco} su {ip}:{port} scritto su file')
+        print(f'{current_time} --- {COLOR["BLUE"]}Esito {attacco} su {ip}:{port} scritto su file{COLOR["ENDC"]}')
     except (SystemExit, KeyboardInterrupt):
         print("END writing file")
 
@@ -66,12 +75,14 @@ def sct_web(hostname, port, sct_cert):
                 for ver in verification_cert:
                     if ver.verified:
                         description = ver.log["description"]
-                        verify_sct = f"For {hostname}:{port} -> {ver.verified}: {description}"
+                        verify_sct = f"{COLOR['GREEN']}For {hostname}:{port} -> {ver.verified}: {description}{COLOR['ENDC']}"
+                        verify_sct_file=f'For {hostname}:{port} -> {ver.verified}: {description}'
                     else:
-                        verify_sct = f"SCT NOT VERIFIED for {hostname}:{port}"
+                        verify_sct = f"{COLOR['RED']}SCT NOT VERIFIED for {hostname}:{port}{COLOR['ENDC']}"
+                        verify_sct_file=f'SCT NOT VERIFIED for {hostname}:{port}'
 
                     log_print(verify_sct)
-                    write_file(hostname, port, verify_sct, 'Certificate Transparency by SCT')
+                    write_file(hostname, port, verify_sct_file, 'Certificate Transparency by SCT')
             else:
                 log_print('Verify Certificate Transparency by OCSP')
                 verification_ocsp = verify_scts_by_ocsp(handshake, ctlogs)
@@ -86,7 +97,7 @@ def sct_web(hostname, port, sct_cert):
                             description = ver.log["description"]
                             ocsp_verify = f"For {hostname}:{port} -> {ver.verified}: {description} - {ver}"
                         else:
-                            ocsp_verify = f"For {hostname}:{port} -> SCT NOT VERIFIED"
+                            ocsp_verify = f"{COLOR['RED']}For {hostname}:{port} -> SCT NOT VERIFIED{COLOR['ENDC']}"
 
                         log_print(ocsp_verify)
                         write_file(hostname, port, ocsp_verify, 'Certificate Transparency by OCSP')
@@ -107,7 +118,7 @@ def sct_web(hostname, port, sct_cert):
                         else:
                             # log_print(action)
                             log_print(
-                                f"For connection {hostname}:{port} -> TLS Extension NOT VERIFIED. For more detail read the log file.")
+                                f"{COLOR['RED']}For connection {hostname}:{port} -> TLS Extension NOT VERIFIED. For more detail read the log file.{COLOR['ENDC']}")
                             # log_print(action)
                         final_tls_string = f'{final_tls_string}\n{action}'
 
@@ -165,7 +176,7 @@ def get_cert_for_hostname(hostname, port):
         certificate = ssl.DER_cert_to_PEM_cert(sock.getpeercert(True))
         return x509.load_pem_x509_certificate(certPEM.encode('ascii'), default_backend()), certificate
     except ssl.SSLError as e:
-        log_print(f"Error Connection for {hostname}:{port} --- REASON: {e.reason}")
+        log_print(f"{COLOR['RED']}Error Connection for {hostname}:{port} --- REASON: {e.reason}{COLOR['ENDC']}")
         write_file(hostname,port,f"Error Connection for {hostname}:{port} --- REASON: {e.reason}",'Get cert for hostname connection')
         return "err", ""
 
@@ -232,7 +243,7 @@ def get_cert_status_for_host(hostname, port):
     crl = ''
     ocsp = ''
     if cert == "err":
-        log_print("Error occurred during connection. No certificate found. ")
+        log_print(f"{COLOR['RED']}Error occurred during connection. No certificate found. {COLOR['ENDC']}")
     else:
         try:
             log_print(f'Certificate for {hostname}:{port} retrieved successfully')
@@ -290,7 +301,7 @@ def get_cert_status_for_host(hostname, port):
             ocsp_server = ""
 
         if array.__len__() == 0:
-            log_print(f"NO CRL AND OCSP EXTENSIONS FOUND in connection {hostname}:{port}. THIS IS DANGEROUS")
+            log_print(f"{COLOR['RED']}NO CRL AND OCSP EXTENSIONS FOUND in connection {hostname}:{port}. THIS IS DANGEROUS{COLOR['ENDC']}")
             write_file(hostname, port, 'NO CRL AND OCSP EXTENSIONS FOUND. THIS IS DANGEROUS', 'Certificate')
         else:
             if array.__contains__('CRL'):
@@ -308,13 +319,13 @@ def get_cert_status_for_host(hostname, port):
                     write_file(hostname, port, final_string_crl, 'CRL')
 
                 except Revoked as e:
-                    log_print(f"Certificate revoked for {hostname}:{port}: {e}")
+                    log_print(f"{COLOR['RED']}Certificate revoked for {hostname}:{port}: {e}{COLOR['ENDC']}")
                     write_file(hostname, port, f"Certificate revoked for {hostname}:{port} : {e}", 'CRL')
                 except Error as e:
-                    log_print(f"Revocation check failed for {hostname}:{port}. Error: {e}")
+                    log_print(f"{COLOR['RED']}Revocation check failed for {hostname}:{port}. Error: {e}{COLOR['ENDC']}")
                     write_file(hostname, port, f"Revocation check failed for {hostname}:{port}. Error: {e}", 'CRL')
                 except:
-                    log_print(f"CAN'T CHECK THE STATUS OF THE CERTIFICATE ON THE CRL SERVER for {hostname}:{port}")
+                    log_print(f"{COLOR['RED']}CAN'T CHECK THE STATUS OF THE CERTIFICATE ON THE CRL SERVER for {hostname}:{port}{COLOR['ENDC']}")
                     write_file(hostname, port,
                                f"CAN'T CHECK THE STATUS OF THE CERTIFICATE ON THE CRL SERVER for {hostname}:{port}",
                                'CRL')
@@ -338,11 +349,11 @@ def get_cert_status_for_host(hostname, port):
             file_status = ''
             status_resp, status_ocsp = get_ocsp_cert_status(ocsp_server, cert, issuer_cert)
             if status_ocsp == 'err':
-                log_print(f'Error for communication {hostname}:{port} in OCSP Response')
+                log_print(f'{COLOR["RED"]}Error for communication {hostname}:{port} in OCSP Response{COLOR["ENDC"]}')
                 file_status = f'Error for communication {hostname}:{port} in OCSP Response\nStatus Response: {status_resp}'
             else:
                 if status_ocsp == '':
-                    log_print(f'In communication {hostname}:{port} decoding ocsp response failed: {status_resp}')
+                    log_print(f'{COLOR["RED"]}In communication {hostname}:{port} decoding ocsp response failed: {status_resp}{COLOR["ENDC"]}')
                     file_status=f'In communication {hostname}:{port} decoding ocsp response failed: {status_resp}'
                 else:
                     log_print(f'OCSP Status retrieved for {hostname}:{port}. The status is written in log file')
