@@ -7,7 +7,7 @@ import OpenSSL
 import cryptography
 import requests
 from urllib.parse import urljoin
-
+import os
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -20,6 +20,7 @@ from ctutlz.ctlog import download_log_list
 from ctutlz.scripts.verify_scts import verify_scts_by_cert, verify_scts_by_ocsp, verify_scts_by_tls
 from ctutlz.tls.handshake import do_handshake, create_context
 from datetime import datetime
+from Monitor_for_TLS_attacks import certificate_fingerprint_config
 
 COLOR = {
     "HEADER": "\033[95m",
@@ -43,9 +44,17 @@ def write_file(ip, port, stdout, attacco):
     stringa_inizio = f'---------START {attacco}---------\nWrite at: {current_time}\n'
     stringa_fine = f'\n---------FINE {attacco}---------\n'
     try:
+        # fp = open(
+        #     f'./Logs/{ip}_{port}.log',
+        #     'a')
+        src_path = f"./Logs/{ip}_{port}"
+        file_exists = os.path.exists(src_path)
+
+        if not file_exists:
+            os.makedirs(src_path)
+
         fp = open(
-            f'./Logs/{ip}_{port}.log',
-            'a')
+            f'{src_path}/{attacco}.log', 'a')
         fp.seek(0, 0)
         fp.write(stringa_inizio)
         # fp.write(s_fine)
@@ -65,11 +74,11 @@ def sct_web(hostname, port, sct_cert):
         # print('HANDSHAKE---------------------')
         # print(handshake.__getattribute__('err'))
         if handshake.__getattribute__('err')!='':
-            log_print(f'SCT Found for connection {hostname}:{port} but Octect is not correct.')
+            log_print(f"{COLOR['RED']} SCT Found for connection {hostname}:{port} but Octect is not correct.{COLOR['ENDC']}")
             write_file(hostname,port,f'SCT Found for connection {hostname}:{port} but Octect is not correct.','SCT Error')
         else:
             if sct_cert.__len__() > 0:
-                log_print('Verify Certificate Transparency by SCT extension into the certificate')
+                log_print(f"{COLOR['YELLOW']}Start Test to verify Certificate Transparency by SCT extension into the certificate")
                 verification_cert = verify_scts_by_cert(handshake, ctlogs)
                 verify_sct = ''
                 for ver in verification_cert:
@@ -84,10 +93,10 @@ def sct_web(hostname, port, sct_cert):
                     log_print(verify_sct)
                     write_file(hostname, port, verify_sct_file, 'Certificate Transparency by SCT')
             else:
-                log_print('Verify Certificate Transparency by OCSP')
+                log_print(f"{COLOR['YELLOW']}Start Test to verify Certificate Transparency by OCSP{COLOR['ENDC']}")
                 verification_ocsp = verify_scts_by_ocsp(handshake, ctlogs)
                 if verification_ocsp.__len__() == 0:
-                    log_print(f"NO SCT FOUND BY OCSP for {hostname}:{port}")
+                    log_print(f"{COLOR['RED']}NO SCT FOUND BY OCSP for {hostname}:{port}{COLOR['ENDC']}")
                     write_file(hostname, port, f"NO SCT FOUND BY OCSP for {hostname}:{port}",
                                'Certificate Transparency by OCSP')
                 else:
@@ -102,12 +111,12 @@ def sct_web(hostname, port, sct_cert):
                         log_print(ocsp_verify)
                         write_file(hostname, port, ocsp_verify, 'Certificate Transparency by OCSP')
 
-                log_print('Verify Certificate Transparency through TLS Extension')
+                log_print(f'{COLOR["YELLOW"]} Verify Certificate Transparency through TLS Extension{COLOR["ENDC"]}')
                 verification_tls = verify_scts_by_tls(handshake, ctlogs)
                 final_tls_string = ''
                 if verification_tls.__len__() == 0:
                     action = f"For {hostname}:{port} -> NO SCT FOUND IN TLS EXTENSION"
-                    log_print(action)
+                    log_print(f'{COLOR["RED"]}{action}{COLOR["ENDC"]}')
                     final_tls_string = action
                 else:
                     for ver in verification_tls:
@@ -149,7 +158,7 @@ def sct_extension(cert, hostname, port):
 
         # print("SCT SOTTO")
         sct = [ia for ia in ct_value]
-        log_print(f"PRECERT_SIGNED_CERTIFICATE_TIMESTAMPS FOUND INTO CERTIFICATE for connection {hostname}:{port}")
+        log_print(f"{COLOR['BLUE']}PRECERT_SIGNED_CERTIFICATE_TIMESTAMPS FOUND INTO CERTIFICATE for connection {hostname}:{port}{COLOR['ENDC']}")
         logs_id = []
         # print(Logs.logs)
         # for s in sct:
@@ -158,7 +167,7 @@ def sct_extension(cert, hostname, port):
 
         return sct
     except cryptography.x509.extensions.ExtensionNotFound:
-        log_print(f"NO PRECERT_SIGNED_CERTIFICATE_TIMESTAMPS FOUND INTO CERTIFICATE for connection {hostname}:{port}")
+        log_print(f"{COLOR['RED']}NO PRECERT_SIGNED_CERTIFICATE_TIMESTAMPS FOUND INTO CERTIFICATE for connection {hostname}:{port}{COLOR['ENDC']}")
         return []
 
 
@@ -167,8 +176,8 @@ def get_cert_for_hostname(hostname, port):
         conn = ssl.create_connection((hostname, port))
         # # mettere TLSv1.3
         # print(f"CONNESSIONE SSL: {hostname}: {port}")
-        log_print(f'Start TLS connection with {hostname}:{port} to retrieve the certificate')
-        context = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+        log_print(f'{COLOR["YELLOW"]} Start TLS connection with {hostname}:{port} to retrieve the certificate{COLOR["ENDC"]}')
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS)
         sock = context.wrap_socket(conn, server_hostname=hostname)
 
         certDER = sock.getpeercert(True)
@@ -245,15 +254,17 @@ def get_cert_status_for_host(hostname, port):
     if cert == "err":
         log_print(f"{COLOR['RED']}Error occurred during connection. No certificate found. {COLOR['ENDC']}")
     else:
+
         try:
-            log_print(f'Certificate for {hostname}:{port} retrieved successfully')
+            log_print(f'{COLOR["GREEN"]} Certificate for {hostname}:{port} retrieved successfully{COLOR["ENDC"]}')
+            write_file(hostname,port,cert_string,'CERTIFICATE')
             crl = cert.extensions.get_extension_for_oid(ExtensionOID.CRL_DISTRIBUTION_POINTS)
             # print("-----------CRLDISTRIBUTIONPOINTS-------------")
             # print(cert.extensions.get_extension_for_oid(ExtensionOID.CRL_DISTRIBUTION_POINTS))
             # print(f"CRL VALUE: {crl.value}")
             array.append('CRL')
         except:
-            log_print(f'CRLDISTRIBUTIONPOINTS NOT FOUND for {hostname}:{port}')
+            log_print(f'{COLOR["RED"]}CRLDISTRIBUTIONPOINTS NOT FOUND for {hostname}:{port}{COLOR["ENDC"]}')
 
         try:
             # print('---------------OCSP---------------')
@@ -264,7 +275,7 @@ def get_cert_status_for_host(hostname, port):
             # print(ocsp)
             array.append('OCSP')
         except:
-            log_print(f'OCSP EXTENSION NOT FOUND for {hostname}:{port}')
+            log_print(f'{COLOR["RED"]}OCSP EXTENSION NOT FOUND for {hostname}:{port}{COLOR["ENDC"]}')
 
         # try:
         # print("---------CERTIFICATE TRANSPARENCY-----------")
