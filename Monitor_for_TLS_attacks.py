@@ -13,7 +13,8 @@ import subprocess
 import os.path
 import os
 from ciphers import cbc_ciphers, rsa_ciphers, export_ciphers, des_ciphers
-from certificate import get_cert_for_hostname, get_ocsp_cert_status, get_cert_status_for_host
+from certificate import get_cert_for_hostname, get_ocsp_cert_status, get_cert_status_for_host,get_certificate_fingerprint
+from single_attack import single_attack
 
 connessioni_attive = dict()
 server_tested = []
@@ -701,6 +702,7 @@ def verifica_vulnerabilita():
                     job.append(lucky13)
 
                 if test_vuln == 'DROWN':
+                    log_print(f'{COLOR["RED"]}Warning! SSLv2 found on network for connection: {ip_source}:{port_source}{COLOR["ENDC"]}')
                     drown = threading.Thread(target=drownAttack, args=(ip_source, port_source))
                     drown.start()
                     log_print_attack(ip_source, port_source, 'DROWN ATTACK WITH TESTSSL')
@@ -779,24 +781,29 @@ def verifica_vulnerabilita():
                     log_print_attack(ip_source, ip_dest, 'CCS INJECTION BY METASPLOIT')
                     job.append(ccs_injection_metasploit)
 
-                if test_vuln == 'SELF SIGNED':
-                    # print(f"THE CERTIFICATE FOR CONNECTION: {connessioni} IS SELF SIGNED")
-                    log_print(
-                        f"{COLOR['RED']} THE CERTIFICATE FOR CONNECTION: {connessioni} IS SELF SIGNED {COLOR['ENDC']}")
-                    write_file(ip_source, port_source, f"THE CERTIFICATE FOR CONNECTION: {connessioni} IS SELF SIGNED",
-                               "Certificate Self Signed")
 
-                if test_vuln == 'EXPIRED':
-                    # print(f"THE CERTIFICATE FOR CONNECTION: {connessioni} IS EXPIRED")
-                    write_file(ip_source, port_source, f"THE CERTIFICATE FOR CONNECTION: {connessioni} IS SELF EXPIRED",
-                               "Certificate Expired")
+                #TODO togliere self-signed ed expired e controllare se il certificato è self-signed o expired solo dopo aver preso il certificato
+                # if test_vuln == 'SELF SIGNED':
+                #     # print(f"THE CERTIFICATE FOR CONNECTION: {connessioni} IS SELF SIGNED")
+                #     log_print(
+                #         f"{COLOR['RED']} THE CERTIFICATE FOR CONNECTION: {connessioni} IS SELF SIGNED {COLOR['ENDC']}")
+                #     write_file(ip_source, port_source, f"THE CERTIFICATE FOR CONNECTION: {connessioni} IS SELF SIGNED",
+                #                "Certificate Self Signed")
+                #
+                # if test_vuln == 'EXPIRED':
+                #     # print(f"THE CERTIFICATE FOR CONNECTION: {connessioni} IS EXPIRED")
+                #     write_file(ip_source, port_source, f"THE CERTIFICATE FOR CONNECTION: {connessioni} IS SELF EXPIRED",
+                #                "Certificate Expired")
                 # RIATTIVARE:
                 if test_vuln == 'CERTIFICATE':
-                    test_certificate = threading.Thread(target=get_cert_status_for_host, args=(ip_source, port_source,),
-                                                        daemon=True)
-                    test_certificate.start()
-                    log_print(f'Start test for certificate in connection {connessioni}')
-                    job.append(test_certificate)
+                    [cert, cert_string] = get_cert_for_hostname(ip_source, port_source)
+                    certificate_monitored_fingerprint = get_certificate_fingerprint(cert,ip_source,port_source)
+                    if certificate_monitored_fingerprint not in certificate_fingerprint_config:
+                        test_certificate = threading.Thread(target=get_cert_status_for_host, args=(ip_source, port_source,cert,cert_string),
+                                                            daemon=True)
+                        test_certificate.start()
+                        log_print(f'Start test for certificate in connection {connessioni}')
+                        job.append(test_certificate)
                 # -------
                 # get_cert_status_for_host(ip_source,port_source)
 
@@ -875,6 +882,7 @@ def file_reader_suricata(fp):
                 flag = True
             if cipher_suite_found not in ciphers_config and cipher_suite_found != '':
                 flag = True
+
 
             # MODIFICARE--------
             if flag:
@@ -1084,8 +1092,26 @@ optional arguments:
   --full                use testssl to make a TLS configuration screenshot of the tested server
   --IDS=Suricata        use Suricata as IDS. This is the default setting
   --IDS=Zeek, --zeek    use Zeek as IDS
-  --nmap, --nmap=true   use nmap to test the server against heartbleed. The default setting is to use only metasploit
   --json                use a network config file in json format
+
+It is possible to use the attacks of this tool without the IDS in the folowing way:
+    
+    usage: monitor_for_tls_attacks [--attack attack_name] [--host ip:port]
+    
+The attack_name can be:
+    - heartbleed
+    - crime
+    - drown
+    - bleichenbacher
+    - robot
+    - padding_oracle_attack
+    - sweet32
+    - logjam
+    - lucky13
+    - poodle
+    - ticketbleed
+    - ccs_injection
+    - roca
   '''
     print(out)
 
@@ -1094,46 +1120,51 @@ if __name__ == "__main__":
     if sys.argv.__contains__("-h") or sys.argv.__contains__("--help"):
         help()
     else:
-        # producer = threading.Thread(target=process_handler, daemon=True)
-        print('Start Monitor for TLS Attacks...')
-        # verify = threading.Thread(target=verifica_vulnerabilita, daemon=True)
+        if sys.argv.__contains__("--attack"):
+            i = sys.argv.index("--attack")
+            attack = sys.argv.pop(i + 1)
+            j = sys.argv.index("--host")
+            host = sys.argv.pop(j + 1)
+            single_attack(attack, host)
+        else:
+            # producer = threading.Thread(target=process_handler, daemon=True)
+            print('Start Monitor for TLS Attacks...')
+            # verify = threading.Thread(target=verifica_vulnerabilita, daemon=True)
 
-        if sys.argv.__contains__("--full"):
-            print("FULL VERSION")
-            full_version = 1
+            if sys.argv.__contains__("--full"):
+                print("FULL VERSION")
+                full_version = 1
 
-        if sys.argv.__contains__("--IDS=Zeek") or sys.argv.__contains__("--IDS=zeek") \
-                or sys.argv.__contains__('--zeek') or sys.argv.__contains__('--Zeek'):
-            print("ZEEK IDS")
-            IDS = "ZEEK"
+            if sys.argv.__contains__("--IDS=Zeek") or sys.argv.__contains__("--IDS=zeek") \
+                    or sys.argv.__contains__('--zeek') or sys.argv.__contains__('--Zeek'):
+                print("ZEEK IDS")
+                IDS = "ZEEK"
 
-        if sys.argv.__contains__("--nmap") or sys.argv.__contains__("--nmap=true"):
-            print("NMAP")
-            nmap = True
+            if sys.argv.__contains__("--json"):
+                print("JSON")
+                i = sys.argv.index("--json")
+                file = open(sys.argv.pop(i + 1))
+                json_format = json.load(file)
+                versions_config = json_format['versions']
+                ciphers_config = json_format['ciphers']
+                certificate_fingerprint_config = json_format['certificate_fingerprint']
+                for i in range(len(certificate_fingerprint_config)):
+                    certificate_fingerprint_config[i]=certificate_fingerprint_config[i].replace(':','').lower()
+                config_input = True
+                # exit(2)
 
-        if sys.argv.__contains__("--json"):
-            print("JSON")
-            i = sys.argv.index("--json")
-            file = open(sys.argv.pop(i + 1))
-            json_format = json.load(file)
-            versions_config = json_format['versions']
-            ciphers_config = json_format['ciphers']
-            certificate_fingerprint_config = json_format['certificate_fingerprint']
-            config_input = True
-            # exit(2)
+            try:
 
-        try:
+                # producer.start()
+                producer()
+                log_print('Producer thread is started...')
 
-            # producer.start()
-            producer()
-            log_print('Producer thread is started...')
-
-            # verify.start()
-            # producer.join()
-            # verify.join()
-            verifica_vulnerabilita()
+                # verify.start()
+                # producer.join()
+                # verify.join()
+                verifica_vulnerabilita()
 
 
-        except (KeyboardInterrupt, SystemExit):
-            print("End of the program")
-            sys.exit()
+            except (KeyboardInterrupt, SystemExit):
+                print("End of the program")
+                sys.exit()

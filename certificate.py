@@ -20,7 +20,7 @@ from ctutlz.ctlog import download_log_list
 from ctutlz.scripts.verify_scts import verify_scts_by_cert, verify_scts_by_ocsp, verify_scts_by_tls
 from ctutlz.tls.handshake import do_handshake, create_context
 from datetime import datetime
-from Monitor_for_TLS_attacks import certificate_fingerprint_config
+
 
 COLOR = {
     "HEADER": "\033[95m",
@@ -242,10 +242,16 @@ def get_ocsp_cert_status(ocsp_server, cert, issuer_cert):
     # log_print(f'fetching ocsp cert status failed with response status: {ocsp_resp.status_code}')
     return ocsp_resp.status_code, 'err'
 
+def get_certificate_fingerprint(cert,hostname,port):
+    try:
+        return cert.fingerprint(cert.signature_hash_algorithm).hex()
+    except:
+        log_print(f'{COLOR["RED"]}No fingerprint can be retrieved for {hostname}:{port}{COLOR["ENDC"]}')
 
-def get_cert_status_for_host(hostname, port):
+
+def get_cert_status_for_host(hostname,port,cert, cert_string):
     # print('   hostname:', hostname, "port:", port)
-    [cert, cert_string] = get_cert_for_hostname(hostname, port)
+
     # print(f"CERTIFICATE: {cert_string}")
     # print(f"ISSUER: {cert.issuer} - SUBJECT: {cert.subject} - VERSION: {cert.version} - PK: {cert.public_key()}")
     array = []
