@@ -474,7 +474,7 @@ def testssl_lab(ip, port):
 class Handler(watchdog.events.PatternMatchingEventHandler):
     def __init__(self):
         super().__init__(ignore_directories=True, case_sensitive=False)
-        logfile_path = r"/var/log/suricata/mio_fast.log" if IDS == "Suricata" else r"/usr/local/zeek/logs/current/ssl.log"
+        logfile_path = r"/var/log/suricata/mio_fast.log" if IDS == "Suricata" else r"/opt/zeek/logs/current/ssl.log"
         self.logfile = open(logfile_path, "rb")
 
     def on_created(self, event):
@@ -882,7 +882,7 @@ if __name__ == "__main__":
                     json_format = json.load(file)
                     versions_config = json_format['versions']
                     ciphers_config = json_format['ciphers']
-                    certificate_fingerprint_config = json_format['certificate_fingerprint']
+                    certificate_fingerprint_config = json_format.get('certificate_fingerprint', [])
                     for idx in range(len(certificate_fingerprint_config)):
                         certificate_fingerprint_config[idx] = certificate_fingerprint_config[idx].replace(':',
                                                                                                           '').lower()
