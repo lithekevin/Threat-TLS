@@ -19,7 +19,6 @@ from certificate import (
 )
 from single_attack import single_attack
 import requests
-import re
 from cveMap import attack_cve_mapping
 from attacks import (metasploit_process, nmap_process, testssl_heartbleed_process, heartbleed_tls_attacker,
                      crime_process,
@@ -30,8 +29,8 @@ from attacks import (metasploit_process, nmap_process, testssl_heartbleed_proces
                      robot_process, robot_metasploit, roca_process, ticketbleed_process, ccs_injection_process_nmap,
                      ccs_injection_process_metasploit, COLOR)
 
-MAX_QUEUE_SIZE = 100  # Increased queue size
-MAX_WORKERS = 20  # Increased number of worker threads
+MAX_QUEUE_SIZE = 100
+MAX_WORKERS = 20
 api_key = "59389710-bfb2-49bf-b933-3d286c183616"
 full_version = 0
 IDS = 'Suricata'
@@ -40,10 +39,10 @@ versions_config = []
 certificate_fingerprint_config = []
 config_input = False
 processed_vulnerabilities = set()
-processed_vulnerabilities_lock = Lock()  # Lock for processed_vulnerabilities
+processed_vulnerabilities_lock = Lock()
 vulnerability_results = {}
 servers_tested = set()
-servers_tested_lock = Lock()  # Lock for servers_tested
+servers_tested_lock = Lock()
 vuln_queue = queue.Queue(maxsize=MAX_QUEUE_SIZE)
 cve_cache = {}
 server_versions_cache = {}
@@ -58,14 +57,11 @@ def get_cve_details(cve_id, cpes):
     if cve_id in cve_cache:
         return cve_cache[cve_id]
 
-    # New API URL and API key
     url = 'https://services.nvd.nist.gov/rest/json/cves/2.0'
-
     headers = {
         'apiKey': api_key
     }
 
-    # Construct params with all CPEs
     params = [('cveId', cve_id)]
     for cpe in cpes:
         params.append(('cpeName', cpe))
@@ -84,7 +80,6 @@ def get_cve_details(cve_id, cpes):
         return None
 
 
-
 def parse_openssl_version(output):
     logging.info(f"OpenSSL output: {output}")
     for line in output.splitlines():
@@ -99,7 +94,7 @@ def parse_openssl_version(output):
 
 def clean_openssl_version(version):
     if version == "1.0.2o":
-        return "1.0.2"  # Remove the trailing 'o'
+        return "1.0.2"
     return version
 
 
@@ -120,20 +115,16 @@ def parse_apache_version(output):
 
 
 def get_server_versions(ip, username='server', password='server'):
-    # First, check if the IP is already in the cache
     with cache_lock:
         if ip in server_versions_cache:
             return server_versions_cache[ip]
 
-    # Now, get or create a lock for this server
     with server_locks_lock:
         if ip not in server_locks:
             server_locks[ip] = threading.Lock()
         server_lock = server_locks[ip]
 
-    # Acquire the server lock
     with server_lock:
-        # Double-check the cache inside the server lock
         with cache_lock:
             if ip in server_versions_cache:
                 return server_versions_cache[ip]
@@ -151,7 +142,6 @@ def get_server_versions(ip, username='server', password='server'):
             versions['apache'] = parse_apache_version(apache_output)
             ssh.close()
 
-            # Cache the versions
             with cache_lock:
                 server_versions_cache[ip] = versions
 
@@ -189,38 +179,31 @@ def process_vulnerability(task):
     ip_source = source.split(":")[0].strip()
     port_source = source.split(":")[1].strip()
 
-    # List of certificate-related vulnerabilities
     certificate_vulnerabilities = {'CERTIFICATE', 'EXPIRED', 'SELF SIGNED'}
 
     if vulnerability in certificate_vulnerabilities:
-        # For certificate-related vulnerabilities, proceed directly to the test
         logging.info(
             f"{COLOR['YELLOW']}Start certificate test for {ip_source}:{port_source} for {vulnerability} vulnerability{COLOR['ENDC']}"
         )
-        # Call the certificate processing function
         process_certificate(ip_source, port_source)
         logging.info(f"Finished processing {vulnerability} for {connection}")
         return
 
-    # Proceed with server version retrieval and CVE checks for other vulnerabilities
     versions = get_server_versions(ip_source)
     if not versions:
         logging.info(f"Could not get server versions for {ip_source}. Skipping vulnerability {vulnerability}")
         return
 
-    # Build CPEs
     cpes = build_cpes(versions)
     if not cpes:
         logging.info(f"No CPEs built for {ip_source}. Skipping vulnerability {vulnerability}")
         return
 
-    # Map vulnerability to CVE
     cve_id = attack_cve_mapping.get(vulnerability)
     if not cve_id:
         logging.info(f"No CVE mapping for vulnerability {vulnerability}. Skipping")
         return
 
-    # Get CVE details
     cve_data = get_cve_details(cve_id, cpes)
     if not cve_data or 'vulnerabilities' not in cve_data or not cve_data['vulnerabilities']:
         logging.info(f"Could not get CVE details for {cve_id}. Skipping vulnerability {vulnerability} or "
@@ -299,7 +282,7 @@ def check_vulnerabilities():
         while True:
             task = vuln_queue.get()
             if task is None:
-                break  # Exit signal
+                break
             executor.submit(process_vulnerability, task)
             vuln_queue.task_done()
 
