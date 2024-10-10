@@ -1,0 +1,32 @@
+---------START CCS Injection BY NMAP---------
+Write at: 10:37:23
+
+Starting Nmap 7.92 ( https://nmap.org ) at 2024-10-07 10:37 EDT
+Nmap scan report for 10.0.2.6
+Host is up (0.0032s latency).
+
+PORT    STATE SERVICE  VERSION
+443/tcp open  ssl/http Apache httpd 2.4.7 ((Ubuntu))
+|_http-server-header: Apache/2.4.7 (Ubuntu)
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 13.04 seconds
+
+---------END CCS Injection BY NMAP---------
+
+---------START CCS Injection BY NMAP---------
+Write at: 10:37:23
+
+Starting Nmap 7.92 ( https://nmap.org ) at 2024-10-07 10:37 EDT
+Nmap scan report for 10.0.2.6
+Host is up (0.0099s latency).
+
+PORT    STATE SERVICE  VERSION
+443/tcp open  ssl/http Apache httpd 2.4.7 ((Ubuntu))
+|_http-server-header: Apache/2.4.7 (Ubuntu)
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 13.33 seconds
+
+---------END CCS Injection BY NMAP---------
+

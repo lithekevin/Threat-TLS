@@ -1,0 +1,16 @@
+---------START HEARTBLEED TLS-ATTACKER---------
+Write at: 20:32:44
+
+[32m00:32:44 [main] INFO : HeartbleedAttacker - (Most probably) Not vulnerable. The server does not respond with a heartbeat message, it is not vulnerable
+[m[32mVulnerable:false[m
+
+---------END HEARTBLEED TLS-ATTACKER---------
+
+---------START HEARTBLEED TLS-ATTACKER---------
+Write at: 20:55:54
+
+[32m00:55:54 [main] INFO : HeartbleedAttacker - (Most probably) Not vulnerable. The server does not respond with a heartbeat message, it is not vulnerable
+[m[32mVulnerable:false[m
+
+---------END HEARTBLEED TLS-ATTACKER---------
+

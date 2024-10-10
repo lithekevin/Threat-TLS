@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Server Vulnerability Details</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+
+        table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            border: 1px solid #333;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #1e1e1e;
+        }
+
+        .vulnerable {
+            color: #f28b82;
+            cursor: pointer;
+        }
+
+        .secure {
+            color: #81c995;
+            cursor: pointer;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+
+        .modal-content {
+            background-color: #1e1e1e;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            color: #e0e0e0;
+            word-wrap: break-word;
+            overflow: auto;
+            max-height: 70vh;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #000;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+    <script>
+        let server = "{{ server }}";
+
+        function fetchServerDetails() {
+            fetch(`/api/server_details/${server}`)
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.querySelector('tbody');
+                    tableBody.innerHTML = ''; // Clear existing rows
+                    let index = 0;
+
+                    for (const [attack, details] of Object.entries(data.attacks)) {
+                        const row = document.createElement('tr');
+
+                        // Attack cell
+                        const attackCell = document.createElement('td');
+                        attackCell.textContent = attack;
+                        attackCell.className = details.vulnerable ? 'vulnerable' : 'secure';
+                        attackCell.setAttribute('onclick', `toggleLogContent('log-${index}', \`${details.log_content}\`)`);
+
+                        // Status cell
+                        const statusCell = document.createElement('td');
+                        statusCell.textContent = details.vulnerable ? 'Vulnerable' : 'Secure';
+                        statusCell.className = details.vulnerable ? 'vulnerable' : 'secure';
+
+                        row.appendChild(attackCell);
+                        row.appendChild(statusCell);
+                        tableBody.appendChild(row);
+
+                        index++;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching server details:', error);
+                });
+        }
+
+        function toggleLogContent(logId, logContent) {
+            const modal = document.getElementById('logModal');
+            const modalContent = document.getElementById('modalContent');
+            modalContent.textContent = logContent;
+            modal.style.display = 'block';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('logModal');
+            modal.style.display = 'none';
+        }
+
+        // Listen for server-sent events
+        const eventSource = new EventSource('/events');
+        eventSource.onmessage = function (event) {
+            if (event.data === 'update') {
+                fetchServerDetails();
+            }
+        };
+
+        // Initial fetch
+        window.onload = fetchServerDetails;
+    </script>
+</head>
+<body>
+<h1 style="text-align: center;">Details for Server: {{ server }}</h1>
+<table>
+    <thead>
+    <tr>
+        <th>Vulnerability</th>
+        <th>Status</th>
+    </tr>
+    </thead>
+    <tbody>
+    <!-- Vulnerability data will be dynamically inserted here -->
+    </tbody>
+</table>
+<div style="text-align: center; margin: 20px;">
+    <a href="{{ url_for('index') }}">Back to Overview</a>
+</div>
+
+<!-- The Modal -->
+<div id="logModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <pre id="modalContent"></pre>
+    </div>
+</div>
+</body>
+</html>

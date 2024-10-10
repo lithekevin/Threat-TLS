@@ -1,8 +1,6 @@
 {
     "versions":[
-        "TLSv10",
-        "TLSv11",
-        "TLSv12"
+        "TLSv13"
     ],
     "ciphers":[
         "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256",

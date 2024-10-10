@@ -1,0 +1,52 @@
+---------START BLEICHENBACHERS---------
+Write at: 10:38:29
+
+14:37:12 [main] INFO : BleichenbacherAttacker - Fetched the following server public key: RSA Public Key [f9:9c:e1:d1:80:a9:3c:d9:f4:99:2b:5f:b8:e5:9b:ea:8f:68:fb:60],[56:66:d1:a4]
+        modulus: c1059ece2609253ee872a68ed619c4e4a0512efcf504183c803c4134abb8884fdd17397916f5470ee917f3995f1f44add845e002101fabf98b3b985b1c8ee6bcaa6a57cb168f0edf495ca749fab84fd46852cee831fd81ed8833186959609601813a920c67a53afa4cb2e7a1eb5767e0b89bb797180585999bf6cf67a725e8359284afc0f588e6056d482425c967c4a470c584b1483a88315ec9a97adb7933ffe4e812ca0bf673c06109d484733bb867d403d5fe59b61fc21b4e6640585ab13adad9280ac907aa2a0d9ede6e446eac6a0278a073d7d1e7f3e51263f77972c456ccef85729f4bec0c2f6bb17ba1422d633dee672eb1e889e9f5f88077be4abfff
+public exponent: 10001
+
+A server is considered vulnerable to this attack if it responds differently to the test vectors.
+A server is considered secure if it always responds the same way.
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not extract Fingerprints
+Vulnerable:false
+
+---------END BLEICHENBACHERS---------
+
+---------START BLEICHENBACHERS---------
+Write at: 10:38:30
+
+14:37:13 [main] INFO : BleichenbacherAttacker - Fetched the following server public key: RSA Public Key [f9:9c:e1:d1:80:a9:3c:d9:f4:99:2b:5f:b8:e5:9b:ea:8f:68:fb:60],[56:66:d1:a4]
+        modulus: c1059ece2609253ee872a68ed619c4e4a0512efcf504183c803c4134abb8884fdd17397916f5470ee917f3995f1f44add845e002101fabf98b3b985b1c8ee6bcaa6a57cb168f0edf495ca749fab84fd46852cee831fd81ed8833186959609601813a920c67a53afa4cb2e7a1eb5767e0b89bb797180585999bf6cf67a725e8359284afc0f588e6056d482425c967c4a470c584b1483a88315ec9a97adb7933ffe4e812ca0bf673c06109d484733bb867d403d5fe59b61fc21b4e6640585ab13adad9280ac907aa2a0d9ede6e446eac6a0278a073d7d1e7f3e51263f77972c456ccef85729f4bec0c2f6bb17ba1422d633dee672eb1e889e9f5f88077be4abfff
+public exponent: 10001
+
+A server is considered vulnerable to this attack if it responds differently to the test vectors.
+A server is considered secure if it always responds the same way.
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not execute Workflow. Something went wrong... Check the debug output for more information
+14:37:13 [main] WARN : BleichenbacherAttacker - Could not extract Fingerprints
+Vulnerable:false
+
+---------END BLEICHENBACHERS---------
+

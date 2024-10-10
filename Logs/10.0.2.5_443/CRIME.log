@@ -1,0 +1,39 @@
+---------START CRIME---------
+Write at: 20:31:55
+
+
+No engine or GOST support via engine with your /usr/bin/openssl
+
+###########################################################
+    testssl       3.0.7 from https://testssl.sh/
+    (19c51cd 2024-09-27 18:02:54)
+
+      This program is free software. Distribution and
+             modification under GPLv2 permitted.
+      USAGE w/o ANY WARRANTY. USE IT AT YOUR OWN RISK!
+
+       Please file bugs @ https://testssl.sh/bugs/
+
+###########################################################
+
+ Using "OpenSSL 3.0.4 21 Jun 2022 (Library: OpenSSL 3.0.4 21 Jun 2022)" [~76 ciphers]
+ on kali:/usr/bin/openssl
+ (built: "Jun 24 17:27:02 2022", platform: "debian-amd64")
+
+
+ Start 2024-10-09 20:31:54        -->> 10.0.2.5:443 (10.0.2.5) <<--
+
+ rDNS (10.0.2.5):        --
+ Service detected:       HTTP
+
+
+ Testing for CRIME vulnerability 
+
+ CRIME, TLS (CVE-2012-4929)                Local problem: /usr/bin/openssl lacks zlib support
+
+ Done 2024-10-09 20:31:55 [   6s] -->> 10.0.2.5:443 (10.0.2.5) <<--
+
+
+
+---------END CRIME---------
+
