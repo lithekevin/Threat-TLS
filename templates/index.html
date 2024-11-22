@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Threat-TLS</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1e1f22;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 0;
+        }
+
+        .navbar {
+            display: flex;
+            align-items: center;
+            background-color: #333;
+            padding: 10px 20px;
+        }
+
+        .navbar img {
+            height: 40px;
+            margin-right: 15px;
+        }
+
+        .navbar h1 {
+            color: #e0e0e0;
+            font-size: 24px;
+            margin: 0;
+        }
+
+        table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            border: 1px solid #333;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #1e1e1e;
+        }
+
+        .vulnerable {
+            color: #f28b82;
+        }
+
+        .secure {
+            color: #81c995;
+        }
+
+        a {
+            color: #8ab4f8;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .button-container {
+            text-align: center;
+            margin: 20px;
+        }
+
+        .divider {
+            border: none; /* Remove the default border */
+            height: 1px; /* Set the height of the divider */
+            background-color: #444; /* Use a color that matches your theme */
+            margin: 10px 20px; /* Add spacing around the divider */
+        }
+
+        .button {
+            font-size: 24px;
+            margin: 0 10px;
+            cursor: pointer;
+        }
+    </style>
+    <script>
+        function fetchServerStatuses() {
+            fetch('/api/server_statuses')
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.querySelector('tbody');
+                    tableBody.innerHTML = '';
+                    for (const [server, details] of Object.entries(data)) {
+                        const row = document.createElement('tr');
+                        const serverCell = document.createElement('td');
+                        const statusCell = document.createElement('td');
+                        const link = document.createElement('a');
+                        link.href = `/server/${server}`;
+                        link.textContent = server;
+                        serverCell.appendChild(link);
+                        statusCell.textContent = details.overall_status;
+                        statusCell.className = details.overall_status === 'Vulnerable' ? 'vulnerable' : 'secure';
+                        row.appendChild(serverCell);
+                        row.appendChild(statusCell);
+                        tableBody.appendChild(row);
+                    }
+                });
+        }
+
+        function startMonitoring() {
+            fetch('/api/start_monitoring', {method: 'POST'})
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Monitoring started');
+                    } else {
+                        alert('Failed to start monitoring');
+                    }
+                });
+        }
+
+        function stopMonitoring() {
+            fetch('/api/stop_monitoring', {method: 'POST'})
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Monitoring stopped');
+                    } else {
+                        alert('Failed to stop monitoring');
+                    }
+                });
+        }
+
+        // Fetch data every 5 seconds
+        setInterval(fetchServerStatuses, 5000);
+        // Initial fetch
+        window.onload = fetchServerStatuses;
+    </script>
+</head>
+<body>
+<div class="navbar">
+    <img src="{{ url_for('static', filename='logo.png') }}" alt="Threat-TLS Logo">
+    <a href="{{ url_for('index') }}" style="text-decoration: none; color: #e0e0e0;">
+        <h1>Threat-TLS</h1>
+    </a>
+</div>
+<h1 style="text-align: center;">Servers</h1>
+<hr class="divider">
+
+<table>
+    <thead>
+    <tr>
+        <th>Server (IP:Port)</th>
+        <th>Overall Status</th>
+    </tr>
+    </thead>
+    <tbody>
+    <!-- Server data will be dynamically inserted here -->
+    </tbody>
+</table>
+</body>
+</html>

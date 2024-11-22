@@ -6,8 +6,28 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #121212;
+            background-color: #1e1f22;
             color: #e0e0e0;
+            margin: 0;
+            padding: 0;
+        }
+
+        .navbar {
+            display: flex;
+            align-items: center;
+            background-color: #333;
+            padding: 10px 20px;
+        }
+
+        .navbar img {
+            height: 40px;
+            margin-right: 15px;
+        }
+
+        .navbar h1 {
+            color: #e0e0e0;
+            font-size: 24px;
+            margin: 0;
         }
 
         table {
@@ -45,7 +65,7 @@
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgba(0,0,0,0.4);
+            background-color: rgba(0, 0, 0, 0.4);
         }
 
         .modal-content {
@@ -67,87 +87,168 @@
             font-weight: bold;
         }
 
+        .table-title {
+            text-align: left;
+            margin-left: 6vw; /* Optional */
+        }
+
         .close:hover,
         .close:focus {
             color: #000;
             text-decoration: none;
             cursor: pointer;
         }
+
+        .scrollable-table-container {
+            max-height: 400px; /* Set the maximum height for the table container */
+            overflow-y: auto; /* Enable vertical scrolling */
+            margin: 20px auto; /* Center the container horizontally */
+            width: 80%; /* Match the width of the tables */
+            border: 1px solid #333; /* Optional: Add a border for the container */
+            border-radius: 5px; /* Optional: Add rounded corners */
+        }
+
+
+        .divider {
+            border: none; /* Remove the default border */
+            height: 1px; /* Set the height of the divider */
+            background-color: #444; /* Use a color that matches your theme */
+            margin: 10px 20px; /* Add spacing around the divider */
+        }
+
+
+        h2 {
+            text-align: center;
+        }
     </style>
     <script>
-        let server = "{{ server }}";
+    let server = "{{ server }}";
 
-        function fetchServerDetails() {
-            fetch(`/api/server_details/${server}`)
-                .then(response => response.json())
-                .then(data => {
-                    const tableBody = document.querySelector('tbody');
-                    tableBody.innerHTML = ''; // Clear existing rows
-                    let index = 0;
+    function fetchServerDetails() {
+        fetch(`/api/server_details/${server}`)
+            .then(response => response.json())
+            .then(data => {
+                const container = document.querySelector('#tables-container');
+                container.innerHTML = ''; // Clear existing tables
 
-                    for (const [attack, details] of Object.entries(data.attacks)) {
+                // Group attacks by type and sort by most recent timestamp
+                const groupedAttacks = {};
+                for (const [attack, details] of Object.entries(data.attacks)) {
+                    const attackType = attack.split(' ')[0]; // Assuming the type is the first word
+
+                    // Extract timestamp from the attack string
+                    const timestampMatch = attack.match(/\d{2}-\d{2}-\d{4}_\d{2}-\d{2}-\d{2}/);
+                    const timestamp = timestampMatch ? parseTimestamp(timestampMatch[0]) : new Date();
+
+                    if (!groupedAttacks[attackType]) {
+                        groupedAttacks[attackType] = [];
+                    }
+                    groupedAttacks[attackType].push({ attack, details, timestamp });
+                }
+
+                // Sort attacks by timestamp in descending order (most recent first)
+                for (const attackType in groupedAttacks) {
+                    groupedAttacks[attackType].sort((a, b) => b.timestamp - a.timestamp);
+                }
+
+                // Create a table for each group
+                for (const [attackType, attacks] of Object.entries(groupedAttacks)) {
+                    const table = document.createElement('table');
+                    table.className = 'vulnerability-table';
+                    const thead = document.createElement('thead');
+                    const tbody = document.createElement('tbody');
+                    const headerRow = document.createElement('tr');
+                    const attackHeader = document.createElement('th');
+                    const statusHeader = document.createElement('th');
+
+                    attackHeader.textContent = 'Vulnerability';
+                    statusHeader.textContent = 'Status';
+                    headerRow.appendChild(attackHeader);
+                    headerRow.appendChild(statusHeader);
+                    thead.appendChild(headerRow);
+                    table.appendChild(thead);
+
+                    attacks.forEach(({ attack, details }, index) => {
                         const row = document.createElement('tr');
-
-                        // Attack cell
                         const attackCell = document.createElement('td');
+                        const statusCell = document.createElement('td');
+
                         attackCell.textContent = attack;
                         attackCell.className = details.vulnerable ? 'vulnerable' : 'secure';
                         attackCell.setAttribute('onclick', `toggleLogContent('log-${index}', \`${details.log_content}\`)`);
 
-                        // Status cell
-                        const statusCell = document.createElement('td');
                         statusCell.textContent = details.vulnerable ? 'Vulnerable' : 'Secure';
                         statusCell.className = details.vulnerable ? 'vulnerable' : 'secure';
 
                         row.appendChild(attackCell);
                         row.appendChild(statusCell);
-                        tableBody.appendChild(row);
+                        tbody.appendChild(row);
+                    });
 
-                        index++;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching server details:', error);
-                });
+                    table.appendChild(tbody);
+                    const tableTitle = document.createElement('h2');
+                    tableTitle.className = 'table-title';
+                    tableTitle.textContent = attackType;
+                    container.appendChild(tableTitle);
+                    const tableContainer = document.createElement('div');
+                    tableContainer.className = 'scrollable-table-container';
+                    tableContainer.appendChild(table);
+
+                    container.appendChild(tableTitle);
+                    container.appendChild(tableContainer);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching server details:', error);
+            });
+    }
+
+    function parseTimestamp(timestampStr) {
+        // Parse the custom timestamp format: "%d-%m-%Y_%H-%M-%S"
+        const [date, time] = timestampStr.split('_');
+        const [day, month, year] = date.split('-').map(Number);
+        const [hour, minute, second] = time.split('-').map(Number);
+        return new Date(year, month - 1, day, hour, minute, second); // Month is 0-indexed in JS
+    }
+
+    function toggleLogContent(logId, logContent) {
+        const modal = document.getElementById('logModal');
+        const modalContent = document.getElementById('modalContent');
+        modalContent.textContent = logContent;
+        modal.style.display = 'block';
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('logModal');
+        modal.style.display = 'none';
+    }
+
+    // Listen for server-sent events
+    const eventSource = new EventSource('/events');
+    eventSource.onmessage = function (event) {
+        if (event.data === 'update') {
+            fetchServerDetails();
         }
+    };
 
-        function toggleLogContent(logId, logContent) {
-            const modal = document.getElementById('logModal');
-            const modalContent = document.getElementById('modalContent');
-            modalContent.textContent = logContent;
-            modal.style.display = 'block';
-        }
+    // Initial fetch
+    window.onload = fetchServerDetails;
+</script>
 
-        function closeModal() {
-            const modal = document.getElementById('logModal');
-            modal.style.display = 'none';
-        }
-
-        // Listen for server-sent events
-        const eventSource = new EventSource('/events');
-        eventSource.onmessage = function (event) {
-            if (event.data === 'update') {
-                fetchServerDetails();
-            }
-        };
-
-        // Initial fetch
-        window.onload = fetchServerDetails;
-    </script>
 </head>
 <body>
+<div class="navbar">
+    <img src="{{ url_for('static', filename='logo.png') }}" alt="TLS-Threat Logo">
+    <a href="{{ url_for('index') }}" style="text-decoration: none; color: #e0e0e0;">
+        <h1>Threat-TLS</h1>
+    </a>
+</div>
 <h1 style="text-align: center;">Details for Server: {{ server }}</h1>
-<table>
-    <thead>
-    <tr>
-        <th>Vulnerability</th>
-        <th>Status</th>
-    </tr>
-    </thead>
-    <tbody>
-    <!-- Vulnerability data will be dynamically inserted here -->
-    </tbody>
-</table>
+<hr class="divider">
+
+<div id="tables-container">
+    <!-- Tables will be dynamically inserted here -->
+</div>
 <div style="text-align: center; margin: 20px;">
     <a href="{{ url_for('index') }}">Back to Overview</a>
 </div>
