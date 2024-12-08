@@ -3,13 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <title>Server Vulnerability Details</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,600&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #1e1f22;
-            color: #e0e0e0;
+            font-family: 'Open Sans', sans-serif;
+            font-size: 16px;
+            background-color: #2b2b2b;
+            color: #f5f5f5;
             margin: 0;
-            padding: 0;
+            padding: 20px;
         }
 
         .navbar {
@@ -17,6 +20,11 @@
             align-items: center;
             background-color: #333;
             padding: 10px 20px;
+            position: sticky;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+            box-sizing: border-box;
         }
 
         .navbar img {
@@ -25,19 +33,62 @@
         }
 
         .navbar h1 {
-            color: #e0e0e0;
+            color: #f5f5f5;
             font-size: 24px;
             margin: 0;
         }
 
+        h1, h2 {
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .divider {
+            border: none;
+            height: 1px;
+            background-color: #444;
+            margin: 10px 0;
+        }
+
+        .content-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .filter-container {
+            margin: 20px 0;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+        }
+
+        .filter-container label {
+            margin-right: 10px;
+            font-weight: 600;
+        }
+
+        .filter-container select {
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #444;
+            background-color: #2b2b2b;
+            color: #f5f5f5;
+            margin-right: 20px;
+        }
+
+        .scrollable-table-container {
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+
         table {
-            width: 80%;
-            margin: 20px auto;
+            width: 100%;
             border-collapse: collapse;
+            margin: 0 auto;
         }
 
         th, td {
-            border: 1px solid #333;
+            border: 1px solid #444;
             padding: 10px;
             text-align: left;
         }
@@ -46,217 +97,567 @@
             background-color: #1e1e1e;
         }
 
+        tr:nth-child(even) {
+            background-color: #2e2e2e;
+        }
+
+        tr:hover {
+            background-color: #3a3a3a;
+        }
+
         .vulnerable {
             color: #f28b82;
-            cursor: pointer;
         }
 
         .secure {
             color: #81c995;
+        }
+
+        .action-button {
+            background-color: #444;
+            color: #f5f5f5;
+            border: none;
+            padding: 8px 12px;
             cursor: pointer;
+            font-size: 14px;
+            border-radius: 4px;
+        }
+
+        .action-button:hover {
+            background-color: #555;
+        }
+
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 220px;
+            background-color: #444;
+            color: #fff;
+            text-align: left;
+            padding: 8px;
+            border-radius: 4px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%; /* Position above the icon */
+            left: 50%;
+            margin-left: -110px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltip .tooltiptext::after {
+            content: '';
+            position: absolute;
+            top: 100%; /* At the bottom of tooltip */
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #444 transparent transparent transparent;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .back-link {
+            text-align: left;
+            margin: 20px;
+        }
+
+        .back-link a {
+            color: #81c995;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .back-link a:hover {
+            text-decoration: underline;
         }
 
         .modal {
             display: none;
             position: fixed;
-            z-index: 1;
+            z-index: 999;
             left: 0;
             top: 0;
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgba(0, 0, 0, 0.4);
+            background-color: rgba(0, 0, 0, 0.7);
         }
 
         .modal-content {
             background-color: #1e1e1e;
-            margin: 15% auto;
+            margin: 5% auto;
             padding: 20px;
             border: 1px solid #888;
             width: 80%;
-            color: #e0e0e0;
+            color: #f5f5f5;
             word-wrap: break-word;
-            overflow: auto;
-            max-height: 70vh;
+            overflow-y: auto;
+            max-height: 80vh;
+            position: relative;
         }
 
         .close {
             color: #aaa;
-            float: right;
+            position: absolute;
+            right: 20px;
+            top: 10px;
             font-size: 28px;
             font-weight: bold;
         }
 
-        .table-title {
-            text-align: left;
-            margin-left: 6vw; /* Optional */
-        }
-
         .close:hover,
         .close:focus {
-            color: #000;
+            color: #f5f5f5;
             text-decoration: none;
             cursor: pointer;
         }
 
-        .scrollable-table-container {
-            max-height: 400px; /* Set the maximum height for the table container */
-            overflow-y: auto; /* Enable vertical scrolling */
-            margin: 20px auto; /* Center the container horizontally */
-            width: 80%; /* Match the width of the tables */
-            border: 1px solid #333; /* Optional: Add a border for the container */
-            border-radius: 5px; /* Optional: Add rounded corners */
-        }
-
-
-        .divider {
-            border: none; /* Remove the default border */
-            height: 1px; /* Set the height of the divider */
-            background-color: #444; /* Use a color that matches your theme */
-            margin: 10px 20px; /* Add spacing around the divider */
-        }
-
-
-        h2 {
+        #loading-spinner {
+            display: none;
             text-align: center;
+            margin: 20px 0;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+            align-items: center;
+        }
+
+        .pagination button {
+            background-color: #444;
+            color: #f5f5f5;
+            border: none;
+            padding: 8px 12px;
+            margin: 0 5px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .pagination button:hover {
+            background-color: #555;
+        }
+
+        .pagination button.disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .pagination .page-info {
+            margin: 0 10px;
+        }
+
+        .sortable {
+            cursor: pointer;
+        }
+
+        .sortable i {
+            margin-left: 5px;
         }
     </style>
+    <!-- Include Font Awesome for Icons -->
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <script>
-    let server = "{{ server }}";
+        let serverKey = "{{ server }}";
+        let tableData = [];
+        let filteredData = [];
+        let currentPage = 1;
+        const rowsPerPage = 10;
+        let currentSortColumn = 'timestamp';
+        let currentSortDirection = 'desc';
 
-    function fetchServerDetails() {
-        fetch(`/api/server_details/${server}`)
-            .then(response => response.json())
-            .then(data => {
-                const container = document.querySelector('#tables-container');
-                container.innerHTML = ''; // Clear existing tables
+        // Mapping from attack names to their fixes (keys normalized to lowercase)
+        const attackFixes = {
+            'Bleichenbacher': 'Update TLS implementation to use countermeasures against Bleichenbacher\'s attack, e.g., implement proper padding checks or avoid RSA encryption modes.',
+            'CCS Injection': 'Patch OpenSSL to fix the CCS Injection vulnerability.',
+            'POODLE': 'Do not use SSL3. Prevent SSL3 downgrade using TLS_FALLBACK_SCSV.',
+            'Heartbleed': 'Patch OpenSSL to fix the Heartbleed vulnerability.',
+            'Lucky13': 'Avoid CBC mode cipher-suites (use AEAD cipher-suites); Use Encrypt-then-MAC TLS extension; Time-invariant MAC calculation.',
+            'Padding Oracle': 'Patch OpenSSL to fix padding oracle vulnerability.',
+            'Sweet32': 'Do not support or negotiate 3DES cipher-suites. Prefer AES over 3DES. Limit length of TLS session.',
+            'DROWN': 'Do not support SSL2 and/or EXPORT cipher-suites.',
+            'Ticketbleed': 'Upgrade to the latest version of software that fixes the TICKETBLEED vulnerability.',
+            'CRIME': 'Disable SSL/TLS compression.',
+            'Logjam': 'Use strong (2048-bit) DH parameters or use ECDHE instead.',
+            'ROCA': 'Replace weak RSA keys generated by vulnerable Infineon chips.',
+            'BEAST': 'Use TLS 1.1 or higher; Avoid CBC mode ciphers in TLS 1.0.',
+            'RC4': 'Do not use RC4 cipher-suites.',
+            'FREAK': 'Do not support EXPORT cipher-suites.',
+            'ROBOT': 'Disable RSA encryption key exchanges.'
+        };
 
-                // Group attacks by type and sort by most recent timestamp
-                const groupedAttacks = {};
-                for (const [attack, details] of Object.entries(data.attacks)) {
-                    const attackType = attack.split(' ')[0]; // Assuming the type is the first word
+        function fetchServerDetails() {
+            document.getElementById('loading-spinner').style.display = 'block';
+            fetch(`/api/server_details/${serverKey}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('loading-spinner').style.display = 'none';
 
-                    // Extract timestamp from the attack string
-                    const timestampMatch = attack.match(/\d{2}-\d{2}-\d{4}_\d{2}-\d{2}-\d{2}/);
-                    const timestamp = timestampMatch ? parseTimestamp(timestampMatch[0]) : new Date();
+                    // Update the server title
+                    document.getElementById('server-title').textContent = `Logs for Server: ${serverKey}`;
 
-                    if (!groupedAttacks[attackType]) {
-                        groupedAttacks[attackType] = [];
-                    }
-                    groupedAttacks[attackType].push({ attack, details, timestamp });
-                }
+                    const attacks = data.attacks;
 
-                // Sort attacks by timestamp in descending order (most recent first)
-                for (const attackType in groupedAttacks) {
-                    groupedAttacks[attackType].sort((a, b) => b.timestamp - a.timestamp);
-                }
+                    // Prepare table data
+                    tableData = Object.values(attacks).map((attack, index) => ({
+                        id: index,
+                        attack_name: attack.attack_name,
+                        tool: attack.tool,
+                        vulnerable: attack.vulnerable,
+                        timestamp: new Date(attack.timestamp),
+                        log_content: attack.log_content
+                    }));
 
-                // Create a table for each group
-                for (const [attackType, attacks] of Object.entries(groupedAttacks)) {
-                    const table = document.createElement('table');
-                    table.className = 'vulnerability-table';
-                    const thead = document.createElement('thead');
-                    const tbody = document.createElement('tbody');
-                    const headerRow = document.createElement('tr');
-                    const attackHeader = document.createElement('th');
-                    const statusHeader = document.createElement('th');
+                    // Create filter container and add to DOM before populating options
+                    createFilterContainer();
 
-                    attackHeader.textContent = 'Vulnerability';
-                    statusHeader.textContent = 'Status';
-                    headerRow.appendChild(attackHeader);
-                    headerRow.appendChild(statusHeader);
-                    thead.appendChild(headerRow);
-                    table.appendChild(thead);
+                    // Populate filter options (now that the select elements exist)
+                    populateFilterOptions();
 
-                    attacks.forEach(({ attack, details }, index) => {
-                        const row = document.createElement('tr');
-                        const attackCell = document.createElement('td');
-                        const statusCell = document.createElement('td');
+                    // Apply default sorting
+                    sortTableData(currentSortColumn, currentSortDirection);
 
-                        attackCell.textContent = attack;
-                        attackCell.className = details.vulnerable ? 'vulnerable' : 'secure';
-                        attackCell.setAttribute('onclick', `toggleLogContent('log-${index}', \`${details.log_content}\`)`);
-
-                        statusCell.textContent = details.vulnerable ? 'Vulnerable' : 'Secure';
-                        statusCell.className = details.vulnerable ? 'vulnerable' : 'secure';
-
-                        row.appendChild(attackCell);
-                        row.appendChild(statusCell);
-                        tbody.appendChild(row);
-                    });
-
-                    table.appendChild(tbody);
-                    const tableTitle = document.createElement('h2');
-                    tableTitle.className = 'table-title';
-                    tableTitle.textContent = attackType;
-                    container.appendChild(tableTitle);
-                    const tableContainer = document.createElement('div');
-                    tableContainer.className = 'scrollable-table-container';
-                    tableContainer.appendChild(table);
-
-                    container.appendChild(tableTitle);
-                    container.appendChild(tableContainer);
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching server details:', error);
-            });
-    }
-
-    function parseTimestamp(timestampStr) {
-        // Parse the custom timestamp format: "%d-%m-%Y_%H-%M-%S"
-        const [date, time] = timestampStr.split('_');
-        const [day, month, year] = date.split('-').map(Number);
-        const [hour, minute, second] = time.split('-').map(Number);
-        return new Date(year, month - 1, day, hour, minute, second); // Month is 0-indexed in JS
-    }
-
-    function toggleLogContent(logId, logContent) {
-        const modal = document.getElementById('logModal');
-        const modalContent = document.getElementById('modalContent');
-        modalContent.textContent = logContent;
-        modal.style.display = 'block';
-    }
-
-    function closeModal() {
-        const modal = document.getElementById('logModal');
-        modal.style.display = 'none';
-    }
-
-    // Listen for server-sent events
-    const eventSource = new EventSource('/events');
-    eventSource.onmessage = function (event) {
-        if (event.data === 'update') {
-            fetchServerDetails();
+                    // Render table
+                    renderTable();
+                })
+                .catch(error => {
+                    document.getElementById('loading-spinner').style.display = 'none';
+                    const container = document.querySelector('#tables-container');
+                    container.innerHTML = '<p style="text-align: center; color: #f28b82;">Error loading data. Please try again later.</p>';
+                    console.error('Error fetching server details:', error);
+                });
         }
-    };
 
-    // Initial fetch
-    window.onload = fetchServerDetails;
-</script>
+        function createFilterContainer() {
+            const container = document.querySelector('#tables-container');
 
+            // Create filter container if it doesn't exist
+            if (!document.getElementById('filter-container')) {
+                const filterContainer = document.createElement('div');
+                filterContainer.className = 'filter-container';
+                filterContainer.id = 'filter-container';
+                filterContainer.innerHTML = `
+                    <label for="attack-filter">Filter by Attack:</label>
+                    <select id="attack-filter">
+                        <!-- Options will be populated dynamically -->
+                    </select>
+                    <label for="tool-filter">Filter by Tool:</label>
+                    <select id="tool-filter">
+                        <!-- Options will be populated dynamically -->
+                    </select>
+                    <div class="charts-link" style="margin-left: auto;">
+                        <form action="{{ url_for('charts_page', server_key=server) }}" method="get" style="display: inline;">
+                            <button type="submit" class="action-button">
+                                <i class="fas fa-chart-bar"></i> View Statistics
+                            </button>
+                        </form>
+                    </div>
+                `;
+                container.appendChild(filterContainer);
+
+                // Add event listeners to filter selects
+                document.getElementById('attack-filter').addEventListener('change', () => {
+                    currentPage = 1;
+                    filterTableData();
+                });
+                document.getElementById('tool-filter').addEventListener('change', () => {
+                    currentPage = 1;
+                    filterTableData();
+                });
+            }
+        }
+
+        function populateFilterOptions() {
+            // Populate attack filter options
+            const attackNames = [...new Set(tableData.map(item => item.attack_name))];
+            const attackFilterSelect = document.getElementById('attack-filter');
+            attackFilterSelect.innerHTML = '<option value="all">All Attacks</option>';
+            attackNames.forEach(attack => {
+                const option = document.createElement('option');
+                option.value = attack;
+                option.textContent = attack;
+                attackFilterSelect.appendChild(option);
+            });
+
+            // Populate tool filter options
+            const toolNames = [...new Set(tableData.map(item => item.tool))];
+            const toolFilterSelect = document.getElementById('tool-filter');
+            toolFilterSelect.innerHTML = '<option value="all">All Tools</option>';
+            toolNames.forEach(tool => {
+                const option = document.createElement('option');
+                option.value = tool;
+                option.textContent = tool;
+                toolFilterSelect.appendChild(option);
+            });
+        }
+
+        function filterTableData() {
+            const selectedAttack = document.getElementById('attack-filter').value;
+            const selectedTool = document.getElementById('tool-filter').value;
+
+            filteredData = tableData.filter(item => {
+                const attackMatch = selectedAttack === 'all' || item.attack_name === selectedAttack;
+                const toolMatch = selectedTool === 'all' || item.tool === selectedTool;
+                return attackMatch && toolMatch;
+            });
+
+            currentPage = 1;
+            renderTable();
+        }
+
+        function sortTableData(column, direction) {
+            currentSortColumn = column;
+            currentSortDirection = direction;
+            tableData.sort((a, b) => {
+                let compareA = a[column];
+                let compareB = b[column];
+
+                if (column === 'timestamp') {
+                    compareA = a[column].getTime();
+                    compareB = b[column].getTime();
+                } else {
+                    compareA = compareA.toString().toLowerCase();
+                    compareB = compareB.toString().toLowerCase();
+                }
+
+                if (compareA < compareB) return direction === 'asc' ? -1 : 1;
+                if (compareA > compareB) return direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            filterTableData();
+        }
+
+        function renderTable() {
+            const container = document.querySelector('#tables-container');
+
+            // Remove existing table and pagination if they exist
+            const existingTable = document.getElementById('data-table');
+            const existingPagination = document.getElementById('pagination-container');
+            if (existingTable) {
+                existingTable.remove();
+            }
+            if (existingPagination) {
+                existingPagination.remove();
+            }
+
+            // Get data for the current page
+            const startIndex = (currentPage - 1) * rowsPerPage;
+            const endIndex = startIndex + rowsPerPage;
+            const pageData = filteredData.slice(startIndex, endIndex);
+
+            // Create table elements
+            const table = document.createElement('table');
+            table.className = 'vulnerability-table';
+            table.id = 'data-table';
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+
+            // Define columns
+            const columns = [
+                {key: 'attack_name', label: 'Attack', sortable: true},
+                {key: 'tool', label: 'Tool', sortable: true},
+                {key: 'vulnerable', label: 'Status', sortable: false},
+                {key: 'timestamp', label: 'Timestamp', sortable: true},
+                {key: 'actions', label: 'Logs', sortable: false}
+            ];
+
+            columns.forEach(col => {
+                const th = document.createElement('th');
+                th.textContent = col.label;
+                if (col.sortable) {
+                    th.className = 'sortable';
+                    const sortIcon = document.createElement('i');
+                    sortIcon.className = 'fas fa-sort';
+                    th.appendChild(sortIcon);
+                    th.addEventListener('click', () => {
+                        let newDirection = 'asc';
+                        if (currentSortColumn === col.key && currentSortDirection === 'asc') {
+                            newDirection = 'desc';
+                        }
+                        sortTableData(col.key, newDirection);
+                    });
+                }
+                headerRow.appendChild(th);
+            });
+
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            pageData.forEach((item) => {
+                const row = document.createElement('tr');
+
+                // Attack Cell with Wrench Icon and Tooltip
+                const attackCell = document.createElement('td');
+                const attackText = document.createElement('span');
+                attackText.textContent = item.attack_name;
+
+                const iconSpan = document.createElement('span');
+                iconSpan.className = 'tooltip';
+                iconSpan.style.marginLeft = '8px';
+
+                const wrenchIcon = document.createElement('i');
+                wrenchIcon.className = 'fas fa-wrench';
+                wrenchIcon.style.color = '#8ab4f8';
+
+                // Fetch the fix based on the attack name (case-insensitive)
+                const fixText = attackFixes[item.attack_name] || 'No mitigation/fix available';
+
+                const tooltipText = document.createElement('span');
+                tooltipText.className = 'tooltiptext';
+                tooltipText.textContent = fixText;
+
+                iconSpan.appendChild(wrenchIcon);
+                iconSpan.appendChild(tooltipText);
+
+                attackCell.appendChild(attackText);
+                attackCell.appendChild(iconSpan);
+
+                row.appendChild(attackCell);
+
+                // Tool Cell
+                const toolCell = document.createElement('td');
+                toolCell.textContent = item.tool;
+                row.appendChild(toolCell);
+
+                // Status Cell
+                const statusCell = document.createElement('td');
+                statusCell.innerHTML = item.vulnerable
+                    ? '<i class="fas fa-exclamation-triangle" style="color: #f28b82;"></i> Vulnerable'
+                    : '<i class="fas fa-check-circle" style="color: #81c995;"></i> Secure';
+                statusCell.className = item.vulnerable ? 'vulnerable' : 'secure';
+                row.appendChild(statusCell);
+
+                // Timestamp Cell
+                const timestampCell = document.createElement('td');
+                timestampCell.textContent = item.timestamp.toLocaleString();
+                row.appendChild(timestampCell);
+
+                // Actions Cell
+                const actionCell = document.createElement('td');
+                const viewLogButton = document.createElement('button');
+                viewLogButton.className = 'action-button';
+                viewLogButton.textContent = 'View Log';
+                viewLogButton.addEventListener('click', () => {
+                    toggleLogContent(`log-${item.id}`, item.log_content);
+                });
+                actionCell.appendChild(viewLogButton);
+                row.appendChild(actionCell);
+
+                tbody.appendChild(row);
+            });
+
+            table.appendChild(tbody);
+
+            // Append table to the container
+            container.appendChild(table);
+
+            // Pagination controls
+            const paginationContainer = document.createElement('div');
+            paginationContainer.className = 'pagination';
+            paginationContainer.id = 'pagination-container';
+
+            const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+
+            const prevButton = document.createElement('button');
+            prevButton.textContent = 'Previous';
+            prevButton.disabled = currentPage === 1;
+            prevButton.className = currentPage === 1 ? 'disabled' : '';
+            prevButton.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderTable();
+                }
+            });
+
+            const nextButton = document.createElement('button');
+            nextButton.textContent = 'Next';
+            nextButton.disabled = currentPage === totalPages;
+            nextButton.className = currentPage === totalPages ? 'disabled' : '';
+            nextButton.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderTable();
+                }
+            });
+
+            // Page Info
+            const pageInfo = document.createElement('span');
+            pageInfo.className = 'page-info';
+            pageInfo.textContent = `Showing ${startIndex + 1}-${Math.min(endIndex, filteredData.length)} of ${filteredData.length} logs`;
+
+            paginationContainer.appendChild(prevButton);
+            paginationContainer.appendChild(pageInfo);
+            paginationContainer.appendChild(nextButton);
+
+            // Append pagination to the container (below the table)
+            container.appendChild(paginationContainer);
+        }
+
+        function toggleLogContent(logId, logContent) {
+            const modal = document.getElementById('logModal');
+            const modalContent = document.getElementById('modalContent');
+            modalContent.textContent = logContent;
+            modal.style.display = 'block';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('logModal');
+            modal.style.display = 'none';
+        }
+
+        // Close modal on outside click
+        window.onclick = function (event) {
+            const modal = document.getElementById('logModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // Initial fetch
+        window.onload = fetchServerDetails;
+    </script>
 </head>
 <body>
 <div class="navbar">
-    <img src="{{ url_for('static', filename='logo.png') }}" alt="TLS-Threat Logo">
-    <a href="{{ url_for('index') }}" style="text-decoration: none; color: #e0e0e0;">
+    <a href="{{ url_for('index') }}" style="text-decoration: none; color: #f5f5f5; display: flex; align-items: center;">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Threat-TLS Logo">
         <h1>Threat-TLS</h1>
     </a>
 </div>
-<h1 style="text-align: center;">Details for Server: {{ server }}</h1>
-<hr class="divider">
-
-<div id="tables-container">
-    <!-- Tables will be dynamically inserted here -->
+<div class="back-link">
+    <a href="{{ url_for('index') }}"><i class="fas fa-arrow-left"></i> Back to Overview</a>
 </div>
-<div style="text-align: center; margin: 20px;">
-    <a href="{{ url_for('index') }}">Back to Overview</a>
+<div class="content-container">
+    <h1 id="server-title">Logs for Server:</h1>
+    <hr class="divider">
+
+    <!-- Loading Spinner -->
+    <div id="loading-spinner">
+        <img src="{{ url_for('static', filename='spinner.gif') }}" alt="Loading..." width="50">
+    </div>
+
+    <div id="tables-container">
+        <!-- Filter controls, table, and pagination will be dynamically inserted here -->
+    </div>
 </div>
 
 <!-- The Modal -->
-<div id="logModal" class="modal">
+<div id="logModal" class="modal" role="dialog" aria-modal="true">
     <div class="modal-content">
-        <span class="close" onclick="closeModal()">&times;</span>
+        <span class="close" onclick="closeModal()" tabindex="0" aria-label="Close">&times;</span>
         <pre id="modalContent"></pre>
     </div>
 </div>

@@ -1,6 +1,6 @@
 import base64
+import hashlib
 import logging
-import os
 import socket
 import ssl
 import struct
@@ -14,122 +14,21 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import ocsp
 from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec, rsa
+from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
 
 from cryptography.x509.oid import ExtensionOID, AuthorityInformationAccessOID
 from asn1crypto import x509 as asn1x509
 
-# Configure Logging
+from db import SessionLocal
+from models import Server, CertificateResult
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-LOGS = [
-    { "Name": "Aviator - FROZEN",
-    "Key": "-----BEGIN PUBLIC KEY-----\n"
-    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE1/TMabLkDpCjiupacAlP7xNi0I1J\n"
-    "YP8bQFAHDG1xhtolSY1l4QgNRzRrvSe8liE+NPWHdjGxfx3JhTsN9x8/6Q==\n"
-    "-----END PUBLIC KEY-----",
-    "LogID": "aPaY+B9kgr46jO65KB1M/HFRXWeT1ETRCmesu09P+8Q=" },
-
-    { "Name": "Digicert Log",
-    "Key": "-----BEGIN PUBLIC KEY-----\n"
-    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAkbFvhu7gkAW6MHSrBlpE1n4+HCF\n"
-    "RkC5OLAjgqhkTH+/uzSfSl8ois8ZxAD2NgaTZe1M9akhYlrYkes4JECs6A==\n"
-    "-----END PUBLIC KEY-----",
-    "LogID": "VhQGmi/XwuzT9eG9RLI+x0Z2ubyZEVzA75SYVdaJ0N0=" },
-
-    { "Name": "Pilot",
-    "Key": "-----BEGIN PUBLIC KEY-----\n"
-    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEfahLEimAoz2t01p3uMziiLOl/fHT\n"
-    "DM0YDOhBRuiBARsV4UvxG2LdNgoIGLrtCzWE0J5APC2em4JlvR8EEEFMoA==\n"
-    "-----END PUBLIC KEY-----",
-    "LogID": "pLkJkLQYWBSHuxOizGdwCjw1mAT5G9+443fNDsgN3BA=" },
-
-    { "Name": "Icarus",
-    "Key": "-----BEGIN PUBLIC KEY-----\n"
-    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAETtK8v7MICve56qTHHDhhBOuV4IlU\n"
-    "aESxZryCfk9QbG9co/CqPvTsgPDbCpp6oFtyAHwlDhnvr7JijXRD9Cb2FA==\n"
-    "-----END PUBLIC KEY-----",
-    "LogID": "KTxRllTIOWW6qlD8WAfUt2+/WHopctykwwz05UVH9Hg=" },
-
-    { "Name": "Rocketeer",
-    "Key": "-----BEGIN PUBLIC KEY-----\n"
-    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEIFsYyDzBi7MxCAC/oJBXK7dHjG+1\n"
-    "aLCOkHjpoHPqTyghLpzA9BYbqvnV16mAw04vUjyYASVGJCUoI3ctBcJAeg==\n"
-    "-----END PUBLIC KEY-----",
-    "LogID": "7ku9t3XOYLrhQmkfq+GeZqMPfl+wctiDAMR7iXqo/cs=" },
-
-    { "Name": "Skydiver",
-    "Key": "-----BEGIN PUBLIC KEY-----\n"
-    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEEmyGDvYXsRJsNyXSrYc9DjHsIa2x\n"
-    "zb4UR7ZxVoV6mrc9iZB7xjI6+NrOiwH+P/xxkRmOFG6Jel20q37hTh58rA==\n"
-    "-----END PUBLIC KEY-----",
-    "LogID": "u9nfvB+KcbWTlCOXqpJ7RzhXlQqrUugakJZkNo4e0YU=" },
-
-    { "Name": "Comodo Dodo",
-    "Key": "-----BEGIN PUBLIC KEY-----\n"
-    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAELPXCMfVjQ2oWSgrewu4fIW4Sfh3lco90CwKZ061p\n"
-    "vAI1eflh6c8ACE90pKM0muBDHCN+j0HV7scco4KKQPqq4A==\n"
-    "-----END PUBLIC KEY-----",
-    "LogID": "23b9raxl59CVCIhuIVm9i5A1L1/q0+PcXiLrNQrMe5g=" },
-
-    { "Name": "Symantec log",
-    "Key": "-----BEGIN PUBLIC KEY-----\n"
-    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEluqsHEYMG1XcDfy1lCdGV0JwOmkY\n"
-    "4r87xNuroPS2bMBTP01CEDPwWJePa75y9CrsHEKqAy8afig1dpkIPSEUhg==\n"
-    "-----END PUBLIC KEY-----",
-    "LogID": "3esdK3oNT6Ygi4GtgWhwfi6OnQHVXIiNPRHEzbbsvsw=" },
-
-    { "Name": "Venafi log",
-    "Key": "-----BEGIN PUBLIC KEY-----\n"
-    "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAolpIHxdSlTXLo1s6H1OC\n"
-    "dpSj/4DyHDc8wLG9wVmLqy1lk9fz4ATVmm+/1iN2Nk8jmctUKK2MFUtlWXZBSpym\n"
-    "97M7frGlSaQXUWyA3CqQUEuIJOmlEjKTBEiQAvpfDjCHjlV2Be4qTM6jamkJbiWt\n"
-    "gnYPhJL6ONaGTiSPm7Byy57iaz/hbckldSOIoRhYBiMzeNoA0DiRZ9KmfSeXZ1rB\n"
-    "8y8X5urSW+iBzf2SaOfzBvDpcoTuAaWx2DPazoOl28fP1hZ+kHUYvxbcMjttjauC\n"
-    "Fx+JII0dmuZNIwjfeG/GBb9frpSX219k1O4Wi6OEbHEr8at/XQ0y7gTikOxBn/s5\n"
-    "wQIDAQAB\n"
-    "-----END PUBLIC KEY-----",
-    "LogID": "rDua7X+pZ0dXFZ5tfVdWcvnZgQCUHpve/+yhMTt1eC0=" },
-
-    { "Name": "WoSign log",
-    "Key": "-----BEGIN PUBLIC KEY-----\n"
-    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEzBGIey1my66PTTBmJxklIpMhRrQv\n"
-    "AdPG+SvVyLpzmwai8IoCnNBrRhgwhbrpJIsO0VtwKAx+8TpFf1rzgkJgMQ==\n"
-    "-----END PUBLIC KEY-----",
-    "LogID": "QbLcLonmPOSvG6e7Kb9oxt7m+fHMBH4w3/rjs7olkmM=" },
-
-    { "Name": "Symantec Vega",
-    "Key": "-----BEGIN PUBLIC KEY-----\n"
-    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE6pWeAv/u8TNtS4e8zf0ZF2L/lNPQ\n"
-    "WQc/Ai0ckP7IRzA78d0NuBEMXR2G3avTK0Zm+25ltzv9WWis36b4ztIYTQ==\n"
-    "-----END PUBLIC KEY-----",
-    "LogID": "vHjh38X2PGhGSTNNoQ+hXwl5aSAJwIG08/aRfz7ZuKU=" },
-
-    { "Name": "CNNIC",
-    "Key": "-----BEGIN PUBLIC KEY-----\n"
-    "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAv7UIYZopMgTTJWPp2IXh\n"
-    "huAf1l6a9zM7gBvntj5fLaFm9pVKhKYhVnno94XuXeN8EsDgiSIJIj66FpUGvai5\n"
-    "samyetZhLocRuXhAiXXbDNyQ4KR51tVebtEq2zT0mT9liTtGwiksFQccyUsaVPhs\n"
-    "Hq9gJ2IKZdWauVA2Fm5x9h8B9xKn/L/2IaMpkIYtd967TNTP/dLPgixN1PLCLayp\n"
-    "vurDGSVDsuWabA3FHKWL9z8wr7kBkbdpEhLlg2H+NAC+9nGKx+tQkuhZ/hWR65aX\n"
-    "+CNUPy2OB9/u2rNPyDydb988LENXoUcMkQT0dU3aiYGkFAY0uZjD2vH97TM20xYt\n"
-    "NQIDAQAB\n"
-    "-----END PUBLIC KEY-----",
-    "LogID": "pXesnO11SN2PAltnokEInfhuD0duwgPC7L7bGF8oJjg=" },
-
-    { "Name": "StartSSL",
-    "Key": "-----BEGIN PUBLIC KEY-----\n"
-    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAESPNZ8/YFGNPbsu1Gfs/IEbVXsajW\n"
-    "TOaft0oaFIZDqUiwy1o/PErK38SCFFWa+PeOQFXc9NKv6nV0+05/YIYuUQ==\n"
-    "-----END PUBLIC KEY-----",
-    "LogID": "NLtq1sPfnAPuqKSZ/3iRSGydXlysktAfe/0bzhnbSO8=" },
-
-    ]
 
 class CertificateValidationError(Exception):
     """Custom exception for certificate validation errors."""
     pass
-
 
 class CertificateValidator:
     """
@@ -157,6 +56,7 @@ class CertificateValidator:
         self.context.set_ciphers('HIGH:!aNULL:!eNULL')
         self.ocsp_urls: List[str] = []
         self.crl_urls: List[str] = []
+        self.session = SessionLocal()  # Database session
 
     def get_cert_for_hostname(self) -> Tuple[Optional[x509.Certificate], Optional[str]]:
         """
@@ -174,9 +74,24 @@ class CertificateValidator:
                     self.cert = x509.load_pem_x509_certificate(self.cert_pem.encode('ascii'), default_backend())
             logger.info(f"Certificate fetched successfully for {self.hostname}:{self.port}")
             return self.cert, self.cert_pem
+        except ssl.SSLCertVerificationError as e:
+            logger.error(f"Certificate verification failed for {self.hostname}:{self.port} - {e}")
+            if "self signed certificate" in str(e).lower():
+                self.handle_self_signed_certificate()
+            return None, None
         except Exception as e:
             logger.error(f"Error fetching certificate from {self.hostname}:{self.port} - {e}")
             return None, None
+
+    def handle_self_signed_certificate(self):
+        """
+        Handles the case when a self-signed certificate is encountered.
+        """
+        logger.warning(f"Self-signed certificate detected for {self.hostname}:{self.port}")
+        self.save_certificate_result(
+            is_valid=False,
+            reason="Self-signed certificate detected. Possible MITM attack."
+        )
 
     def fetch_intermediate_certs(self) -> List[asn1x509.Certificate]:
         """
@@ -226,12 +141,27 @@ class CertificateValidator:
             self.validate_certificate_chain()
             await self.check_ocsp_revocation()
             await self.check_crl_revocation()
-            self.check_scts()
+            await self.check_scts()
+            await self.check_certificate_in_ct_logs()
             logger.info(f"Certificate validation completed successfully for {self.hostname}:{self.port}")
+            # Save successful validation result
+            self.save_certificate_result(
+                is_valid=True,
+                reason="Certificate is valid."
+            )
         except CertificateValidationError as e:
             logger.error(f"Certificate validation failed for {self.hostname}:{self.port} - {e}")
+            # Save the result indicating validation failure
+            self.save_certificate_result(
+                is_valid=False,
+                reason=str(e)
+            )
         except Exception as e:
             logger.error(f"An unexpected error occurred during validation: {e}")
+            self.save_certificate_result(
+                is_valid=False,
+                reason=f"Unexpected error: {e}"
+            )
 
     def extract_revocation_info(self):
         """
@@ -268,16 +198,12 @@ class CertificateValidator:
         """
         try:
             logger.info(f"Validating certificate chain for {self.hostname}")
-            # Load the end-entity certificate
             cert = asn1x509.Certificate.load(self.der_cert)
 
-            # Fetch intermediate certificates
             intermediates = self.fetch_intermediate_certs()
 
-            # Create ValidationContext (using system trust roots)
             context = ValidationContext()
 
-            # Instantiate the validator with intermediates
             validator = CV(cert, intermediate_certs=intermediates, validation_context=context)
             validator.validate_tls(self.hostname)
             logger.info(f"Certificate chain is valid for {self.hostname}")
@@ -394,9 +320,145 @@ class CertificateValidator:
                 logger.error(f"Error checking CRL revocation status: {e}")
                 raise
 
+    #async def check_scts(self):
+    #    """
+    #    Checks for SCTs in the certificate, TLS handshake, and OCSP response.
+    #    """
+    #    scts_found = False
+    #
+    #    try:
+    #        scts = self.cert.extensions.get_extension_for_oid(
+    #            ExtensionOID.SIGNED_CERTIFICATE_TIMESTAMPS
+    #        ).value
+    #        if scts:
+    #            logger.info(f"SCTs found in certificate for {self.hostname}")
+    #            scts_found = True
+    #            await self.verify_scts(scts)
+    #    except x509.ExtensionNotFound:
+    #        logger.warning("No SCTs found in the certificate.")
+    #
+    #    if not scts_found:
+    #        scts = self.get_scts_from_tls_handshake()
+    #        if scts:
+    #            scts_found = True
+    #            await self.verify_scts(scts)
+    #
+    #    if not scts_found:
+    #        scts = await self.get_scts_from_ocsp()
+    #        if scts:
+    #            scts_found = True
+    #            await self.verify_scts(scts)
+    #
+    #    if not scts_found:
+    #        logger.error(f"No SCTs found for {self.hostname}. Certificate may not be compliant with CT requirements.")
+    #        raise CertificateValidationError("No SCTs found via certificate, TLS handshake, or OCSP response.")
+
+    def get_scts_from_tls_handshake(self) -> List[bytes]:
+        """
+        Performs a TLS handshake and extracts SCTs from the ServerHello message.
+        """
+        try:
+            logger.info(f"Attempting to extract SCTs from TLS handshake for {self.hostname}:{self.port}")
+            command = [
+                'openssl', 's_client',
+                '-connect', f'{self.hostname}:{self.port}',
+                '-tlsextdebug', '-status', '-ign_eof'
+            ]
+            result = subprocess.run(command, capture_output=True, text=True, timeout=self.timeout)
+            output = result.stdout
+
+            scts = self.parse_scts_from_openssl_output(output)
+            if scts:
+                logger.info(f"SCTs extracted from TLS handshake for {self.hostname}:{self.port}")
+                return scts
+            else:
+                logger.warning(f"No SCTs found in TLS handshake for {self.hostname}:{self.port}")
+                return []
+        except Exception as e:
+            logger.error(f"Error extracting SCTs from TLS handshake: {e}")
+            return []
+
+    def parse_scts_from_openssl_output(self, output: str) -> List[bytes]:
+        """
+        Parses SCTs from the output of 'openssl s_client'.
+        """
+        scts = []
+        lines = output.split('\n')
+        sct_data = ''
+        capture = False
+        for line in lines:
+            if 'TLS server extension "status request"' in line:
+                capture = False
+            elif 'TLS server extension "signed certificate timestamp"' in line:
+                capture = True
+                continue
+            if capture:
+                if '---' in line:
+                    capture = False
+                    continue
+                sct_data += line.strip()
+        if sct_data:
+            try:
+                sct_bytes = base64.b64decode(sct_data)
+                scts.append(sct_bytes)
+            except Exception as e:
+                logger.error(f"Error decoding SCT data: {e}")
+        return scts
+
+    async def get_scts_from_ocsp(self) -> List[bytes]:
+        """
+        Fetches the OCSP response and extracts SCTs if present.
+        """
+
+        return []
+
+    async def verify_scts(self, scts):
+        """
+        Verifies SCTs using the fetched CT logs.
+        """
+        ct_logs = self.fetch_known_ct_logs()
+        for sct in scts:
+            # Extract log_id from SCT
+            log_id = sct.log_id if hasattr(sct, 'log_id') else sct[:32]
+            log_id_b64 = base64.b64encode(log_id).decode("ascii")
+            public_key_pem = ct_logs.get(log_id_b64)
+            if not public_key_pem:
+                logger.warning(f"LogID {log_id_b64} not found in known logs.")
+                continue
+            if not self.verify_sct(sct, public_key_pem, self.der_cert):
+                raise CertificateValidationError(f"SCT verification failed for log {log_id_b64}.")
+        logger.info("All SCTs verified successfully.")
+
+    def fetch_known_ct_logs(self) -> dict:
+        """
+        Fetches the list of known CT logs from a reliable source.
+        Returns a dictionary mapping log IDs to their public keys.
+        """
+        ct_logs = {}
+        try:
+            response = requests.get('https://www.gstatic.com/ct/log_list/v3/log_list.json')
+            response.raise_for_status()
+            log_list = response.json()
+
+            for log in log_list.get('logs', []):
+                key = log.get('key')
+                log_id = log.get('log_id')
+                if key and log_id:
+                    public_key_der = base64.b64decode(key)
+                    public_key = serialization.load_der_public_key(public_key_der, backend=default_backend())
+                    public_key_pem = public_key.public_bytes(
+                        encoding=serialization.Encoding.PEM,
+                        format=serialization.PublicFormat.SubjectPublicKeyInfo
+                    ).decode('ascii')
+                    ct_logs[log_id] = public_key_pem
+            logger.info("Fetched known CT logs successfully.")
+        except Exception as e:
+            logger.error(f"Error fetching known CT logs: {e}")
+        return ct_logs
+
     def verify_sct(self, sct, public_key_pem, ee_cert_der):
         """
-        Verifies a single SCT using OpenSSL.
+        Verifies a single SCT using cryptography library.
 
         Args:
             sct (bytes): The SCT to verify.
@@ -407,90 +469,107 @@ class CertificateValidator:
             bool: True if verification is successful, False otherwise.
         """
         try:
-            # Parse SCT fields
-            offset = 0
-            version = sct[offset]
-            offset += 1
-            log_id = sct[offset:offset + 32]
-            offset += 32
-            timestamp, = struct.unpack("!Q", sct[offset:offset + 8])
-            offset += 8
-            extensions_len, = struct.unpack("!H", sct[offset:offset + 2])
-            offset += 2 + extensions_len
-            sig_alg_hash = sct[offset]
-            sig_alg_sign = sct[offset + 1]
-            offset += 2
-            signature_len, = struct.unpack("!H", sct[offset:offset + 2])
-            offset += 2
-            signature = sct[offset:offset + signature_len]
-
-            # Prepare signed data
-            cert_len_bytes = struct.pack("!I", len(ee_cert_der))[1:]  # 3 bytes for length
-            signed_data = (
-                    struct.pack("!BBQh", version, 0, timestamp, 0) +  # Version, type, timestamp
-                    cert_len_bytes + ee_cert_der +  # Length and cert
-                    struct.pack("!H", 0)  # Extensions length
-            )
-
-            # Write public key, signature, and signed data to temporary files
-            with open("tmp-pubkey.pem", "w") as pubkey_file:
-                pubkey_file.write(public_key_pem)
-            with open("tmp-signature.bin", "wb") as sig_file:
-                sig_file.write(signature)
-            with open("tmp-signeddata.bin", "wb") as signed_data_file:
-                signed_data_file.write(signed_data)
-
-            # Use OpenSSL to verify
-            args = [
-                "openssl", "dgst", "-sha256", "-verify", "tmp-pubkey.pem",
-                "-signature", "tmp-signature.bin", "tmp-signeddata.bin"
-            ]
-            result = subprocess.run(args, capture_output=True)
-            if result.returncode == 0:
-                logger.info("SCT verification successful.")
-                return True
+            # Parse SCT
+            if isinstance(sct, x509.SignedCertificateTimestamp):
+                sct_data = sct
             else:
-                logger.error("SCT verification failed.")
-                return False
-        finally:
-            # Clean up temporary files
-            for tmp_file in ["tmp-pubkey.pem", "tmp-signature.bin", "tmp-signeddata.bin"]:
-                try:
-                    os.remove(tmp_file)
-                except FileNotFoundError:
-                    pass
+                sct_data = x509.SignedCertificateTimestamp.from_der(sct)
 
-    def check_scts(self):
+            tbs_data = b'\x00' + struct.pack('>Q', sct_data.timestamp)
+            cert_length_bytes = struct.pack('>I', len(ee_cert_der))
+            tbs_data += cert_length_bytes[1:] + ee_cert_der + struct.pack('>H', 0)  # Empty extensions
+
+            public_key = serialization.load_pem_public_key(public_key_pem.encode('ascii'), backend=default_backend())
+
+            hash_alg = sct_data.signature_hash_algorithm
+            if hash_alg == x509.SignatureHashAlgorithm.sha256:
+                chosen_hash = hashes.SHA256()
+            elif hash_alg == x509.SignatureHashAlgorithm.sha384:
+                chosen_hash = hashes.SHA384()
+            else:
+                logger.error(f"Unsupported hash algorithm: {hash_alg}")
+                return False
+
+            if isinstance(public_key, rsa.RSAPublicKey):
+                public_key.verify(
+                    sct_data.signature,
+                    tbs_data,
+                    asym_padding.PKCS1v15(),
+                    chosen_hash
+                )
+            elif isinstance(public_key, ec.EllipticCurvePublicKey):
+                public_key.verify(
+                    sct_data.signature,
+                    tbs_data,
+                    ec.ECDSA(chosen_hash)
+                )
+            else:
+                logger.error("Unsupported public key type for SCT verification.")
+                return False
+
+            logger.info("SCT verification successful.")
+            return True
+        except Exception as e:
+            logger.error(f"SCT verification failed: {e}")
+            return False
+
+    async def check_certificate_in_ct_logs(self):
         """
-        Verifies Signed Certificate Timestamps (SCTs) for Certificate Transparency.
+        Checks if the certificate is present in known CT logs by querying them.
         """
         try:
-            scts = self.cert.extensions.get_extension_for_oid(
-                ExtensionOID.SIGNED_CERTIFICATE_TIMESTAMPS
-            ).value
-            if scts:
-                logger.info(f"SCTs found in certificate for {self.hostname}")
-                for sct in scts:
-                    log_id_b64 = base64.b64encode(sct.log_id).decode("ascii")
-                    public_key_pem = next(
-                        (log["Key"] for log in LOGS if log["LogID"] == log_id_b64),
-                        None
-                    )
-                    if not public_key_pem:
-                        logger.warning(f"LogID {log_id_b64} not found in known logs.")
-                        continue
-                    if not self.verify_sct(sct.encode(), public_key_pem, self.der_cert):
-                        raise CertificateValidationError(f"SCT verification failed for log {log_id_b64}.")
-                logger.info("All SCTs verified successfully.")
-            else:
-                logger.warning(f"No SCTs found in certificate for {self.hostname}")
-        except x509.ExtensionNotFound:
-            logger.warning("No SCTs found in the certificate.")
+            logger.info(f"Checking if certificate is present in CT logs for {self.hostname}")
+            cert_der = self.cert.public_bytes(serialization.Encoding.DER)
+            cert_sha256 = hashlib.sha256(cert_der).hexdigest()
+
+            ct_logs = [
+                'https://ct.googleapis.com/logs/xenon2023',
+                'https://ct.googleapis.com/logs/argon2023',
+                # Add more known CT log URLs
+            ]
+
+            found_in_ct = False
+            for log_url in ct_logs:
+                query_url = f"https://crt.sh/?q={cert_sha256}&output=json"
+                response = requests.get(query_url)
+                if response.status_code == 200 and response.json():
+                    logger.info(f"Certificate found in CT log {log_url}")
+                    found_in_ct = True
+                    break
+            if not found_in_ct:
+                logger.error("Certificate not found in any known CT logs.")
+                raise CertificateValidationError("Certificate not found in any known CT logs.")
         except Exception as e:
-            logger.error(f"Error during SCT verification: {e}")
+            logger.error(f"Error checking certificate in CT logs: {e}")
+            raise CertificateValidationError(f"Error checking certificate in CT logs: {e}")
 
+    def save_certificate_result(self, is_valid: bool, reason: str):
+        """
+        Saves the certificate validation result to the database.
 
-# Expose the necessary functions for main.py
+        Args:
+            is_valid (bool): Whether the certificate is valid.
+            reason (str): The reason for the validation result.
+        """
+        # Find or create the server
+        server = self.session.query(Server).filter_by(ip=self.hostname, port=str(self.port)).first()
+        if not server:
+            server = Server(ip=self.hostname, port=str(self.port))
+            self.session.add(server)
+            self.session.commit()
+
+        # Create the certificate result
+        cert_result = CertificateResult(
+            server_id=server.id,
+            is_valid=is_valid,
+            reason=reason,
+            certificate_pem=self.cert_pem if self.cert_pem else '',
+            fingerprint=self.get_certificate_fingerprint() if self.cert else ''
+        )
+        self.session.add(cert_result)
+        self.session.commit()
+        logger.info(f"Certificate validation result saved for {self.hostname}:{self.port}")
+
 async def validate_certificate(hostname: str, port: int = 443):
     """
     Performs the entire certificate validation process for the given hostname and port.
@@ -504,6 +583,5 @@ async def validate_certificate(hostname: str, port: int = 443):
     if cert is None:
         logger.error(f"Failed to retrieve certificate for {hostname}:{port}")
         return
-    fingerprint = validator.get_certificate_fingerprint()
     await validator.get_cert_status_for_host()
-    return cert, cert_pem, fingerprint
+    return cert, cert_pem, validator.get_certificate_fingerprint()
