@@ -41,8 +41,7 @@ Visualize the results in the web interface by opening the following URL in your 
 ```
   http://localhost:5000
 ```
-
-![Server Details](https://github.com/lithekevin/Threat-TLS/tree/master/static/serverDetails.png)
+![serverDetails.png](static/serverDetails.png)
 
 ### Perform Specific Attack
 To perform a specific attack on a host, use the following command:
