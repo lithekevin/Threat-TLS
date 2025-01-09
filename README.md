@@ -13,7 +13,7 @@ Threat-TLS is a tool designed to monitor network traffic for TLS attacks using S
 
 1. Clone the repository:
     ```sh
-    git clone https://github.com/yourusername/threat-tls.git
+    git clone https://github.com/lithekevin/Threat-TLS.git
     cd threat-tls
     ```
 
@@ -36,6 +36,13 @@ or
 ```sh
   python core.py --IDS=Zeek
 ```
+
+Visualize the results in the web interface by opening the following URL in your browser:
+```
+  http://localhost:5000
+```
+
+![Server Details](https://github.com/lithekevin/Threat-TLS/tree/master/static/serverDetails.png)
 
 ### Perform Specific Attack
 To perform a specific attack on a host, use the following command:

@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/Monitor_Suricata_Zeek.iml" filepath="$PROJECT_DIR$/.idea/Monitor_Suricata_Zeek.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/Threat-TLS.iml" filepath="$PROJECT_DIR$/.idea/Threat-TLS.iml" />
     </modules>
   </component>
 </project>
