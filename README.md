@@ -1,6 +1,6 @@
 # Threat-TLS
 
-Threat-TLS is a tool designed to monitor network traffic for TLS attacks using Suricata or Zeek IDS. It checks for various vulnerabilities and provides detailed logs and mitigation steps.
+Threat-TLS is a tool designed to monitor network traffic for TLS attacks using Suricata or Zeek IDS configured with custom rules. It checks for various vulnerabilities in connections and provides detailed logs and mitigation steps.
 
 ## Features
 
