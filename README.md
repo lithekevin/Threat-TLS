@@ -1,11 +1,10 @@
 <div align="center">
   <h1>Threat-TLS</h1>
   <p>
-    <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" height="22">
-    <img src="https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=Flask&logoColor=white" alt="Flask" height="22">
-    <img src="https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="Sqlite" height="22">
-<img src="https://img.shields.io/badge/Suricata-FF5733?style=for-the-badge&logo=suricata&logoColor=white" alt="Suricata" height="22">
-    <img src="https://img.shields.io/badge/Zeek-000000?style=for-the-badge&logo=zeek&logoColor=white" alt="Zeek" height="22">
+    <img src="https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=fff" alt="Python" height="22">
+    <img src="https://img.shields.io/badge/HTML-%23E34F26.svg?logo=html5&logoColor=white" alt="HTML" height="22">
+    <img src="https://img.shields.io/badge/Flask-000?logo=flask&logoColor=fff" alt="Flask" height="22">
+    <img src="https://img.shields.io/badge/SQLite-%2307405e.svg?logo=sqlite&logoColor=white" alt="Sqlite" height="22">
   </p>
 </div>
 
